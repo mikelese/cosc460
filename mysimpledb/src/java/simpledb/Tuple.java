@@ -24,6 +24,10 @@ public class Tuple implements Serializable {
      *           instance with at least one field.
      */
     public Tuple(TupleDesc td) {
+    	if (td==null || td.numFields()<1) {
+    		throw new IllegalArgumentException("Tuple Error: Provided "+
+    			"TupleDesc must be valid and have at least one field");
+    	}
     	this.tupleDesc = td;
     	this.fields = new Field[tupleDesc.numFields()];
     }

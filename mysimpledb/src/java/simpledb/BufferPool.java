@@ -68,8 +68,13 @@ public class BufferPool {
      */
     public Page getPage(TransactionId tid, PageId pid, Permissions perm)
             throws TransactionAbortedException, DbException {
-        // some code goes here
-        Page pg = find(pid);
+    	/*
+    	 * For now, I used a LRU removal policy using a queue in which 
+    	 * the most recently used page is appended to the rear.
+    	 * This is clearly subject to change.
+    	 */
+    	
+    	Page pg = find(pid);
     	if (pg==null) {
         	int tableid = pid.getTableId();        	
         	pg = Database.getCatalog().getDatabaseFile(tableid).readPage(pid);
