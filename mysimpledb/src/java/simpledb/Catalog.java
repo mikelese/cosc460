@@ -17,13 +17,18 @@ import java.util.concurrent.ConcurrentHashMap;
  * @Threadsafe
  */
 public class Catalog {
+	private HashMap<String,DbFile> files;
+	private HashMap<String,String> pkeys;
+	private HashMap<String,Integer> ids;
 
     /**
      * Constructor.
      * Creates a new, empty catalog.
      */
     public Catalog() {
-        // some code goes here
+        this.files = new HashMap<String,DbFile>();
+     	this.pkeys = new HashMap<String,String>();
+    	this.ids = new HashMap<String,Integer>();
     }
 
     /**
@@ -37,7 +42,9 @@ public class Catalog {
      *                  conflict exists, use the last table to be added as the table for a given name.
      */
     public void addTable(DbFile file, String name, String pkeyField) {
-        // some code goes here
+        files.put(name, file);
+        pkeys.put(name, pkeyField);
+        ids.put(name, file.getId());
     }
 
     public void addTable(DbFile file, String name) {
@@ -62,8 +69,15 @@ public class Catalog {
      * @throws NoSuchElementException if the table doesn't exist
      */
     public int getTableId(String name) throws NoSuchElementException {
-        // some code goes here
-        return 0;
+    	if(name==null)throw new NoSuchElementException("Catalog Error: Null reference name");
+    	
+    	int ret;
+    	try{
+    		ret=ids.get(name);
+    	} catch (NullPointerException e) {
+    		throw new NoSuchElementException("Catalog Error: Null reference name");
+    	}
+    	return ret;
     }
 
     /**
@@ -74,8 +88,13 @@ public class Catalog {
      * @throws NoSuchElementException if the table doesn't exist
      */
     public TupleDesc getTupleDesc(int tableid) throws NoSuchElementException {
-        // some code goes here
-        return null;
+    	String key = getTableName(tableid);
+    	if(key==null)	
+    		throw new NoSuchElementException("Catalog Error: Null reference name");
+    	TupleDesc ret = files.get(key).getTupleDesc();
+    	if(ret==null)	
+    		throw new NoSuchElementException("Catalog Error: Null reference name");
+    	return ret;
     }
 
     /**
@@ -86,22 +105,27 @@ public class Catalog {
      *                function passed to addTable
      */
     public DbFile getDatabaseFile(int tableid) throws NoSuchElementException {
-        // some code goes here
-        return null;
+    	return files.get(getTableName(tableid));
     }
 
     public String getPrimaryKey(int tableid) {
-        // some code goes here
-        return null;
+        return pkeys.get(getTableName(tableid));
     }
 
     public Iterator<Integer> tableIdIterator() {
-        // some code goes here
-        return null;
+       return ids.values().iterator();
+    	
     }
 
     public String getTableName(int id) {
-        // some code goes here
+        Iterator<String> it = ids.keySet().iterator();
+        
+        while(it.hasNext()) {
+        	String key = it.next();
+        	if(ids.get(key)==id) {
+        		return key;
+        	}
+        }
         return null;
     }
 
@@ -109,7 +133,9 @@ public class Catalog {
      * Delete all tables from the catalog
      */
     public void clear() {
-        // some code goes here
+        files.clear();
+        pkeys.clear();
+        ids.clear();
     }
 
     /**

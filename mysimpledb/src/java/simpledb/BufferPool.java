@@ -1,8 +1,7 @@
 package simpledb;
 
-import java.io.*;
-
-import java.util.concurrent.ConcurrentHashMap;
+import java.io.IOException;
+import java.util.LinkedList;
 
 /**
  * BufferPool manages the reading and writing of pages into memory from
@@ -30,13 +29,17 @@ public class BufferPool {
      */
     public static final int DEFAULT_PAGES = 50;
 
+    private LinkedList<Page> cache;
+    private int maxSize;
+    
     /**
      * Creates a BufferPool that caches up to numPages pages.
      *
      * @param numPages maximum number of pages in this buffer pool.
      */
     public BufferPool(int numPages) {
-        // some code goes here
+       maxSize = numPages;
+       this.cache = new LinkedList<Page>();
     }
 
     public static int getPageSize() {
@@ -66,7 +69,28 @@ public class BufferPool {
     public Page getPage(TransactionId tid, PageId pid, Permissions perm)
             throws TransactionAbortedException, DbException {
         // some code goes here
-        return null;
+        Page pg = find(pid);
+    	if (pg==null) {
+        	int tableid = pid.getTableId();        	
+        	pg = Database.getCatalog().getDatabaseFile(tableid).readPage(pid);
+        	
+        	if(cache.size()> maxSize){
+        		cache.remove(maxSize-1);
+        	}
+        	cache.push(pg);
+        } 	
+    	return pg;
+    }
+    
+    private Page find(PageId pid) {
+    	for(Page pg:cache) {
+    		if (pg.getId().equals(pid)) {
+    			cache.remove(pg);
+    			cache.push(pg); //Puts most recently accessed page at the top?
+    			return pg;		//Temporary LRU policy //TODO CHange this
+    		}
+    	}
+    	return null;
     }
 
     /**

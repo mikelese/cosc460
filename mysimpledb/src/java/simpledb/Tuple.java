@@ -1,8 +1,9 @@
 package simpledb;
 
 import java.io.Serializable;
-import java.util.Arrays;
 import java.util.Iterator;
+
+import simpledb.TupleDesc.TDItem;
 
 /**
  * Tuple maintains information about the contents of a tuple. Tuples have a
@@ -12,6 +13,9 @@ import java.util.Iterator;
 public class Tuple implements Serializable {
 
     private static final long serialVersionUID = 1L;
+    private TupleDesc tupleDesc;
+    private Field[] fields;
+    private RecordId rid;
 
     /**
      * Create a new tuple with the specified schema (type).
@@ -20,7 +24,8 @@ public class Tuple implements Serializable {
      *           instance with at least one field.
      */
     public Tuple(TupleDesc td) {
-        // some code goes here
+    	this.tupleDesc = td;
+    	this.fields = new Field[tupleDesc.numFields()];
     }
 
     /**
@@ -28,7 +33,7 @@ public class Tuple implements Serializable {
      */
     public TupleDesc getTupleDesc() {
         // some code goes here
-        return null;
+        return this.tupleDesc;
     }
 
     /**
@@ -36,8 +41,7 @@ public class Tuple implements Serializable {
      * be null.
      */
     public RecordId getRecordId() {
-        // some code goes here
-        return null;
+        return this.rid;
     }
 
     /**
@@ -46,7 +50,7 @@ public class Tuple implements Serializable {
      * @param rid the new RecordId for this tuple.
      */
     public void setRecordId(RecordId rid) {
-        // some code goes here
+    	this.rid = rid;
     }
 
     /**
@@ -56,16 +60,19 @@ public class Tuple implements Serializable {
      * @param f new value for the field.
      */
     public void setField(int i, Field f) {
-        // some code goes here
+        if(tupleDesc.getFieldType(i).equals(f.getType()))
+        	fields[i] = f;
+        else
+        	throw new RuntimeException("Tuple Error: Expected field of type '"+tupleDesc.getFieldType(i)+"'");
     }
+        
 
     /**
      * @param i field index to return. Must be a valid index.
      * @return the value of the ith field, or null if it has not been set.
      */
     public Field getField(int i) {
-        // some code goes here
-        return null;
+        return this.fields[i];
     }
 
     /**
@@ -77,8 +84,12 @@ public class Tuple implements Serializable {
      * where \t is any whitespace, except newline
      */
     public String toString() {
-        // some code goes here
-        throw new UnsupportedOperationException("Implement this");
+        String ret = "";
+        for (int i=0;i<fields.length;i++) {
+        	ret+=fields[i];
+        	if(i!= fields.length-1)
+        		ret+="\t";
+        }
+        return ret;
     }
-
 }
