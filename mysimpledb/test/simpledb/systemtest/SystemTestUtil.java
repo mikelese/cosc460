@@ -114,7 +114,7 @@ public class SystemTestUtil {
     public static void matchTuples(DbIterator iterator, List<ArrayList<Integer>> tuples)
             throws DbException, TransactionAbortedException, IOException {
         ArrayList<ArrayList<Integer>> copy = new ArrayList<ArrayList<Integer>>(tuples);
-
+        
         if (Debug.isEnabled()) {
             Debug.log("Expected tuples:");
             for (ArrayList<Integer> t : copy) {

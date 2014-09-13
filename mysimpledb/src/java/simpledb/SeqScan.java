@@ -68,7 +68,14 @@ public class SeqScan implements DbIterator {
      * prefixed with the tableAlias string from the constructor.
      */
     public TupleDesc getTupleDesc() {
-        return Database.getCatalog().getTupleDesc(this.tableid);
+        TupleDesc ret =  Database.getCatalog().getTupleDesc(this.tableid);
+        Type[] types = new Type[ret.numFields()];
+        String[] fields = new String[ret.numFields()];
+        for (int i=0;i<ret.numFields();i++) {
+        	types[i] = ret.getFieldType(i);
+        	fields[i] = getAlias() + "." + ret.getFieldName(i);
+        }
+        return new TupleDesc(types,fields);
     }
 
     public boolean hasNext() throws TransactionAbortedException, DbException {

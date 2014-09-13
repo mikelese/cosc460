@@ -177,7 +177,7 @@ public class HeapFile implements DbFile {
 					} else {
 						Database.getBufferPool().discardPage(curPage.getId());
 						pageNum++;
-						curPage = (HeapPage)Database.getBufferPool().getPage(tid, new HeapPageId(pageNum,heapfile.getId()), null);
+						curPage = (HeapPage)Database.getBufferPool().getPage(tid, new HeapPageId(heapfile.getId(),pageNum), null);
 						tuples = curPage.iterator();
 						if(tuples.hasNext())
 							return tuples.next();
@@ -194,7 +194,7 @@ public class HeapFile implements DbFile {
 					TransactionAbortedException {
 				if(pageNum != -1) {
 					pageNum = 0;
-					curPage = (HeapPage)Database.getBufferPool().getPage(tid, new HeapPageId(pageNum,heapfile.getId()), null);
+					curPage = (HeapPage)Database.getBufferPool().getPage(tid, new HeapPageId(heapfile.getId(),pageNum), null);
 					tuples = curPage.iterator();
 				} else {
 					throw new NoSuchElementException("HeapFileIterator Error: Iterator has not been opened.");
