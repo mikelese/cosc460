@@ -296,8 +296,13 @@ public class HeapPage implements Page {
     public boolean isSlotUsed(int i) {
     	if(i>=numSlots || i<0)
     		throw new IllegalArgumentException("stub");
+    	
     	int byt = i/8;
     	int slt = i%8;
+    	
+    	if (byt > getHeaderSize() - 1){
+    		return false;
+    	}
     	
     	byte head = header[byt];
     	return (1<<slt & head) !=0; //Originally used Math.pow, but then remembered 201.
