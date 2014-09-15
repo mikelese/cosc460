@@ -5,21 +5,29 @@ After you complete lab 1, please answer the following questions.  For lab 1, the
 
 1. What is your name?  If you work with a partner, be sure to write both of your names.
 
-<Replace this text with your answer>
+Michael Lese
 
 2. What did you think of this assignment?
 
-<Replace this text with your answer>
+I thought this assignment was fulfilling, but challenging. Certain aspects took some time to understand, but trying to figure out these components did manage to help my understanding substantially.
+
+It was a good experience working with a substantial code base as well.
 
 3. What was the hardest part of this assignment?
 
-<Replace this text with your answer>
+The readfile functionality and the iterator, particularly both segments' debugging components, as well as the seqscan, as elaborated upon below, were very challenging for me, and it has become abundantly clear that my debugging skills need work.
+
+Fitting the pieces together of the lab also took some deep thought.
+
+The 201ish components (the bitwise operations on the header) also were challenging until I got back into the stride of doing bitwise operations.
 
 4. Describe any missing or incomplete elements of your code.
 
-<Replace this text with your answer>
+Despite my best efforts, my code did not pass two unit tests in the seq scan tests, despite the end to end testing at the end working properly.
+
+Even after several hours of debugging, I could not find the problem.
 
 5. Roughly how long did you spend working on this lab?
 
-<Replace this text with your answer>
+8-9 hours, give or take.
 
