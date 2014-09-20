@@ -1,11 +1,12 @@
 package simpledb;
 
 import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
@@ -71,7 +72,8 @@ public class HeapFile implements DbFile {
     	BufferedInputStream in;
     	try {
 			in = new BufferedInputStream(new FileInputStream(file),BufferPool.PAGE_SIZE);
-			in.skip(BufferPool.PAGE_SIZE*(pid.pageNumber()-1));
+			System.out.println("About to read: "+pid.pageNumber());
+			in.skip(BufferPool.PAGE_SIZE*(pid.pageNumber()));
 			int bytesRead = 0;
 			data = new byte[BufferPool.PAGE_SIZE];
 			while (bytesRead < BufferPool.PAGE_SIZE) {
@@ -100,8 +102,18 @@ public class HeapFile implements DbFile {
 
     // see DbFile.java for javadocs
     public void writePage(Page page) throws IOException {
-        // some code goes here
-        // not necessary for lab1
+    	BufferedOutputStream out;
+    	byte data[] = page.getPageData();
+    	try {
+			out = new BufferedOutputStream(new FileOutputStream(file),BufferPool.PAGE_SIZE);
+			out.write(data, page.getId().pageNumber()*BufferPool.PAGE_SIZE, data.length);
+			
+			out.close();
+			
+    	} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}        
     }
 
     /**
@@ -114,15 +126,22 @@ public class HeapFile implements DbFile {
     // see DbFile.java for javadocs
     public ArrayList<Page> insertTuple(TransactionId tid, Tuple t)
             throws DbException, IOException, TransactionAbortedException {
-        // some code goes here
-        return null;
-        // not necessary for lab1
+    	//for(int i=0;i<)
+    	return null;
     }
 
     // see DbFile.java for javadocs
     public ArrayList<Page> deleteTuple(TransactionId tid, Tuple t) throws DbException,
             TransactionAbortedException {
-        // some code goes here
+        
+    	try {
+			Database.getBufferPool().deleteTuple(tid, t);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			return null;
+		}
+    	
         return null;
         // not necessary for lab1
     }
