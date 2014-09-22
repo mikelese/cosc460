@@ -1,6 +1,7 @@
 package simpledb;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.LinkedList;
 
 /**
@@ -69,7 +70,7 @@ public class BufferPool {
     public Page getPage(TransactionId tid, PageId pid, Permissions perm)
             throws TransactionAbortedException, DbException {
     	/*
-    	 * For now, I used a LRU removal policy using a queue in which 
+    	 * For now (now being Lab 1), I used an LRU removal policy using a queue in which 
     	 * the most recently used page is appended to the rear.
     	 * This is clearly subject to change.
     	 */
@@ -80,7 +81,7 @@ public class BufferPool {
         	pg = Database.getCatalog().getDatabaseFile(tableid).readPage(pid);
         	
         	if(cache.size()> maxSize){
-        		cache.remove(maxSize-1);
+        		evictPage();
         	}
         	cache.push(pg);
         } 	
@@ -92,7 +93,7 @@ public class BufferPool {
     		if (pg.getId().equals(pid)) {
     			cache.remove(pg);
     			cache.push(pg); //Puts most recently accessed page at the top?
-    			return pg;		//Temporary LRU policy //TODO CHange this
+    			return pg;		//Temporary LRU policy //TODO Adjust
     		}
     	}
     	return null;
@@ -160,8 +161,14 @@ public class BufferPool {
      */
     public void insertTuple(TransactionId tid, int tableId, Tuple t)
             throws DbException, IOException, TransactionAbortedException {
-        // some code goes here
-        // not necessary for lab1
+    	
+        DbFile file = Database.getCatalog().getDatabaseFile(tableId);
+        ArrayList<Page> arr = file.insertTuple(tid, t);
+        
+        for (Page pg: arr) {
+        	pg = this.getPage(tid, pg.getId(), null);
+        	pg.markDirty(true, tid);
+        }
     }
 
     /**
@@ -178,8 +185,11 @@ public class BufferPool {
      */
     public void deleteTuple(TransactionId tid, Tuple t)
             throws DbException, IOException, TransactionAbortedException {
-        // some code goes here
-        // not necessary for lab1
+    	PageId pid = t.getRecordId().getPageId();
+    	HeapPage pg = (HeapPage)Database.getBufferPool().getPage(tid, pid, null);
+    	pg.deleteTuple(t);
+    	
+    	Database.getBufferPool().getPage(tid, pid, null).markDirty(true, tid);
     }
 
     /**
@@ -188,9 +198,11 @@ public class BufferPool {
      * break simpledb if running in NO STEAL mode.
      */
     public synchronized void flushAllPages() throws IOException {
-        // some code goes here
-        // not necessary for lab1
-
+    	for(Page pg : cache) {
+    		if(pg.isDirty()!=null) {
+    			flushPage(pg.getId());
+    		}
+    	}
     }
 
     /**
@@ -210,16 +222,19 @@ public class BufferPool {
      * @param pid an ID indicating the page to flush
      */
     private synchronized void flushPage(PageId pid) throws IOException {
-        // some code goes here
-        // not necessary for lab1
+		DbFile file = Database.getCatalog().getDatabaseFile(pid.getTableId());
+		file.writePage(Database.getBufferPool().find(pid)); //TODO, may affect LRU policy
     }
 
     /**
      * Write all pages of the specified transaction to disk.
      */
     public synchronized void flushPages(TransactionId tid) throws IOException {
-        // some code goes here
-        // not necessary for lab1|lab2|lab3|lab4                                                         // cosc460
+    	for(Page pg: cache)   { // cosc460
+    		if(pg.isDirty()== tid) { //TODO Check efficiency
+    			flushPage(pg.getId());
+    		}
+    	}
     }
 
     /**
@@ -227,8 +242,13 @@ public class BufferPool {
      * Flushes the page to disk to ensure dirty pages are updated on disk.
      */
     private synchronized void evictPage() throws DbException {
-        // some code goes here
-        // not necessary for lab1
+        Page pg = cache.removeLast();
+        try {
+			flushPage(pg.getId());
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
     }
 
 }

@@ -1,12 +1,11 @@
 package simpledb;
 
 import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
@@ -72,7 +71,7 @@ public class HeapFile implements DbFile {
     	BufferedInputStream in;
     	try {
 			in = new BufferedInputStream(new FileInputStream(file),BufferPool.PAGE_SIZE);
-			System.out.println("About to read: "+pid.pageNumber());
+			//System.out.println("About to read: "+pid.pageNumber());
 			in.skip(BufferPool.PAGE_SIZE*(pid.pageNumber()));
 			int bytesRead = 0;
 			data = new byte[BufferPool.PAGE_SIZE];
@@ -102,48 +101,62 @@ public class HeapFile implements DbFile {
 
     // see DbFile.java for javadocs
     public void writePage(Page page) throws IOException {
-    	BufferedOutputStream out;
+    	RandomAccessFile out = new RandomAccessFile(this.file,"rw");
     	byte data[] = page.getPageData();
-    	try {
-			out = new BufferedOutputStream(new FileOutputStream(file),BufferPool.PAGE_SIZE);
-			out.write(data, page.getId().pageNumber()*BufferPool.PAGE_SIZE, data.length);
-			
-			out.close();
-			
-    	} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}        
+    	System.out.println("Writing page no: " + page.getId().pageNumber());
+    	
+    	out.seek(page.getId().pageNumber()*BufferPool.PAGE_SIZE);
+    	out.write(data);	
+    	out.close();	
     }
 
     /**
      * Returns the number of pages in this HeapFile.
+     * TODO Check correctness
      */
     public int numPages() {
-    	return (int)(file.length()/BufferPool.PAGE_SIZE);
+    	return (int)Math.ceil((double)file.length()/BufferPool.PAGE_SIZE);
     }
 
     // see DbFile.java for javadocs
     public ArrayList<Page> insertTuple(TransactionId tid, Tuple t)
             throws DbException, IOException, TransactionAbortedException {
-    	//for(int i=0;i<)
-    	return null;
+    	HeapPage pg = null;
+    	boolean isAdded = false;
+    	
+    	for (int i=0;i<this.numPages();i++) {
+    		pg = (HeapPage)Database.getBufferPool().getPage(tid, new HeapPageId(this.getId(),i), null);
+    		System.out.println("NumSlots in page "+ i +": " + pg.getNumEmptySlots());
+    		if(pg.getNumEmptySlots() > 0) {
+    			isAdded = true;
+    			break;
+    		}
+    	}
+    	
+    	//New Page needed
+    	if(!isAdded) {
+    		System.out.println("adding new page");
+    		pg = new HeapPage(new HeapPageId(this.getId(),numPages()),HeapPage.createEmptyPageData());
+    	}
+    	
+		pg.insertTuple(t);
+		this.writePage(pg);
+		
+    	ArrayList<Page> ret = new ArrayList<Page>();
+    	ret.add(pg);
+    	return ret;
     }
 
     // see DbFile.java for javadocs
     public ArrayList<Page> deleteTuple(TransactionId tid, Tuple t) throws DbException,
-            TransactionAbortedException {
-        
-    	try {
-			Database.getBufferPool().deleteTuple(tid, t);
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-			return null;
-		}
+            TransactionAbortedException {    	
+    	HeapPage pg = (HeapPage)Database.getBufferPool().getPage(tid, t.getRecordId().getPageId(), null);
     	
-        return null;
-        // not necessary for lab1
+    	pg.deleteTuple(t);
+    	
+    	ArrayList<Page> arr = new ArrayList<Page>();
+    	arr.add(pg);
+    	return arr;
     }
 
     // see DbFile.java for javadocs

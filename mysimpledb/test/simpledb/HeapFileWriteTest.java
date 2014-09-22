@@ -1,12 +1,11 @@
 package simpledb;
 
+import static org.junit.Assert.assertEquals;
+import junit.framework.JUnit4TestAdapter;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-
-import static org.junit.Assert.*;
-
-import junit.framework.JUnit4TestAdapter;
 
 public class HeapFileWriteTest extends TestUtil.CreateHeapFile {
     private TransactionId tid;
@@ -32,18 +31,25 @@ public class HeapFileWriteTest extends TestUtil.CreateHeapFile {
     public void addTuple() throws Exception {
         // we should be able to add 504 tuples on an empty page.
         for (int i = 0; i < 504; ++i) {
+            System.out.println(empty.numPages()+" pages " + "i: "+ i);
+//        	DbFileIterator it = empty.iterator(null);
+//        	while(it.hasNext()) {
+//        		System.out.println(it.next());
+//        	}
             empty.insertTuple(tid, Utility.getHeapTuple(i, 2));
             assertEquals(1, empty.numPages());
         }
 
         // the next 512 additions should live on a new page
         for (int i = 0; i < 504; ++i) {
+            System.out.println("Page " +empty.numPages()+ " Tuple #" +i);
             empty.insertTuple(tid, Utility.getHeapTuple(i, 2));
             assertEquals(2, empty.numPages());
         }
-
+        
         // and one more, just for fun...
         empty.insertTuple(tid, Utility.getHeapTuple(0, 2));
+        System.out.println(empty.numPages()+" pages " + "i: 0");
         assertEquals(3, empty.numPages());
     }
 
