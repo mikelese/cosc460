@@ -3,13 +3,65 @@ Report for Lab 3
 
 Answer the questions from the lab description here.  Questions 8 and 9 do not require answers.
 
-1.
-2.
+1. 
+Aggregate, Delete, Filter, HashEquiJoin, Insert, Join, Operator, OrderBy, Project, SeqScan, TupleIterator
+
+2. 
+Aggregate, Delete, Filter, HashEquiJoin, Insert, Join, OrderBy, Project
+
 3.
+Project, Join, Theta Join? (HashEquiJoin), Select (Filter), Difference (by Delete?), Union (by insert).
+
 4.
+Filter implements the DBIterator interface, despite not implementing next and hasNext, because it inherits the methods from Operator, its superclass.
+
 5.
+
+if iterR.hasNext():
+	r = iterR.next()
+	while r not matches predicate or not iterR.hasNext():
+		r = iterR.next
+	
+	if r matches predicate:
+		return r
+	else:
+		return null
+return null
+
 6.
+list = []
+while iterR.hasNext():
+	rTup = iterR.next() 
+	while iterS.hasNext():
+		sTup = iterS.next()
+		if rTup and sTup match join predicate:
+			newTup = merge(rTup, sTup)
+			list.append(newTup)
+	iterS.rewind()
+return list
+		
 7.
+
+if t1 == null:
+	if iterR.hasNext():
+		t1 = iterR.next()
+	else:
+		return null
+
+while sTup.hasNext():
+	if iterS.hasNext():
+		t2 = iterS.next() #questionable
+		while not sTup and rTup match join predicate:
+              		t2  = iterS.next()
+		if t1 and t2 match join predicate:
+			return merge(t1, t2)
+	if iterR.hasNext():	
+		t1 = iterR.next()
+	else:
+		break
+
+	iterS.rewind()  
+return null
 
 After you complete lab 3, please answer the following questions.  
 
@@ -32,4 +84,3 @@ After you complete lab 3, please answer the following questions.
 5. Roughly how long did you spend working on this lab?
 
 <Replace this text with your answer>
-
