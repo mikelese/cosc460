@@ -126,12 +126,20 @@ public class Join extends Operator {
     			}
     		}
     		if(p.filter(t1, t2)) {
-    			System.out.println("Join " + t1 + " || " + t2);
-    			return merge(t1,t2);
+    			Tuple temp1 = t1;
+    			Tuple temp2 = t2;
+    			//System.out.println("Join " + t1 + " || " + t2);
+    			if(!children[1].hasNext()) {
+    				if(children[0].hasNext()) {
+    					children[1].rewind();
+    					t1 = children[0].next();
+    				}
+    			}
+    			return merge(temp1,temp2);
     		}
-    		children[1].rewind();
     		if(children[0].hasNext()) {
     			t1 = children[0].next();
+    			children[1].rewind();
     		} else {
     			t1 = null;
     		}

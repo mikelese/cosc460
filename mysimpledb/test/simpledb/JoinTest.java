@@ -74,9 +74,21 @@ public class JoinTest extends SimpleDbTestBase {
     public void rewind() throws Exception {
         JoinPredicate pred = new JoinPredicate(0, Predicate.Op.EQUALS, 0);
         Join op = new Join(pred, scan1, scan2);
+//        while(scan1.hasNext() || scan2.hasNext()) {
+//        	if(scan1.hasNext()) {
+//        		//System.out.print(scan1.next());
+//        	}
+//        	//System.out.print("||");
+//        	if(scan2.hasNext()) {
+//        		//System.out.print(scan2.next()+" ");
+//        	}
+//        	//System.out.println();
+//        }
         op.open();
         while (op.hasNext()) {
-            assertNotNull(op.next());
+            Tuple tup = op.next();
+        	System.out.println(tup);
+        	assertNotNull(tup);
         }
         assertTrue(TestUtil.checkExhausted(op));
         op.rewind();
@@ -84,6 +96,7 @@ public class JoinTest extends SimpleDbTestBase {
         eqJoin.open();
         Tuple expected = eqJoin.next();
         Tuple actual = op.next();
+        System.out.println("*****"+expected + "\n"+ actual+"********");
         assertTrue(TestUtil.compareTuples(expected, actual));
     }
 
