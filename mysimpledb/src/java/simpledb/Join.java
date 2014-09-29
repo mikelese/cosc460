@@ -8,6 +8,13 @@ import java.util.*;
 public class Join extends Operator {
 
     private static final long serialVersionUID = 1L;
+    
+    private JoinPredicate p;
+    private DbIterator[] children;
+    
+	private Tuple t1 = null;
+	private Tuple t2 = null;
+
 
     /**
      * Constructor. Accepts to children to join and the predicate to join them
@@ -18,12 +25,14 @@ public class Join extends Operator {
      * @param child2 Iterator for the right(inner) relation to join
      */
     public Join(JoinPredicate p, DbIterator child1, DbIterator child2) {
-        // some code goes here
+        this.p = p;
+        children = new DbIterator[2];
+        this.children[0] = child1;
+        this.children[1] = child2;
     }
 
     public JoinPredicate getJoinPredicate() {
-        // some code goes here
-        return null;
+        return p;
     }
 
     /**
@@ -31,8 +40,7 @@ public class Join extends Operator {
      * alias or table name.
      */
     public String getJoinField1Name() {
-        // some code goes here
-        return null;
+        return children[0].getTupleDesc().getFieldName(p.getField1());
     }
 
     /**
@@ -40,8 +48,7 @@ public class Join extends Operator {
      * alias or table name.
      */
     public String getJoinField2Name() {
-        // some code goes here
-        return null;
+        return children[1].getTupleDesc().getFieldName(p.getField2());
     }
 
     /**
@@ -49,21 +56,34 @@ public class Join extends Operator {
      * implementation logic.
      */
     public TupleDesc getTupleDesc() {
-        // some code goes here
-        return null;
+        return TupleDesc.merge(children[0].getTupleDesc(), children[1].getTupleDesc());
     }
 
     public void open() throws DbException, NoSuchElementException,
             TransactionAbortedException {
-        // some code goes here
+        super.open();
+        children[0].open();
+        children[1].open();
+        nullify();
     }
 
     public void close() {
-        // some code goes here
+        super.close();
+        children[0].close();
+        children[1].close();
+        nullify();
     }
 
     public void rewind() throws DbException, TransactionAbortedException {
-        // some code goes here
+    	children[0].rewind();
+    	children[1].rewind();
+    	nullify();
+    }
+    
+    // Resets current tuple values
+    private void nullify() {
+    	t1 = null;
+    	t2 = null;
     }
 
     /**
@@ -85,19 +105,59 @@ public class Join extends Operator {
      * @see JoinPredicate#filter
      */
     protected Tuple fetchNext() throws TransactionAbortedException, DbException {
-        // some code goes here
-        return null;
+    	if (t1==null) {
+    		if(children[0].hasNext()) {
+    			t1 = children[0].next();
+    		} else {
+    			return null;
+    		}
+    	}
+    	while(t1 != null) {
+    		if(children[1].hasNext()) {
+    			t2 = children[1].next();
+    		} else {
+    			return null;
+    		}
+    		while(!p.filter(t1, t2)) {
+    			if(children[1].hasNext()) {
+    				t2 = children[1].next();
+    			} else {
+    				break;
+    			}
+    		}
+    		if(p.filter(t1, t2)) {
+    			System.out.println("Join " + t1 + " || " + t2);
+    			return merge(t1,t2);
+    		}
+    		children[1].rewind();
+    		if(children[0].hasNext()) {
+    			t1 = children[0].next();
+    		} else {
+    			t1 = null;
+    		}
+    	}
+    	return null;
+    }
+    
+    private Tuple merge(Tuple t1, Tuple t2) {
+    	Tuple ret = new Tuple(getTupleDesc());
+    	
+    	for(int i=0;i<t1.getTupleDesc().numFields();i++) {
+    		ret.setField(i, t1.getField(i));
+    	}
+    	for(int i=0;i<t2.getTupleDesc().numFields();i++) {
+    		ret.setField(i+t1.getTupleDesc().numFields(), t2.getField(i));
+    	}
+    	return ret;
     }
 
     @Override
     public DbIterator[] getChildren() {
-        // some code goes here
-        return null;
+        return children;
     }
 
     @Override
     public void setChildren(DbIterator[] children) {
-        // some code goes here
+        this.children = children;
     }
-
 }

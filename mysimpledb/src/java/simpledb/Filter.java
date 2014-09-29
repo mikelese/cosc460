@@ -1,6 +1,6 @@
 package simpledb;
 
-import java.util.*;
+import java.util.NoSuchElementException;
 
 /**
  * Filter is an operator that implements a relational select.
@@ -10,7 +10,7 @@ public class Filter extends Operator {
     private static final long serialVersionUID = 1L;
     
     private Predicate p;
-    private DbIterator child;
+    private DbIterator[] children;
     
     /**
      * Constructor accepts a predicate to apply and a child operator to read
@@ -21,7 +21,8 @@ public class Filter extends Operator {
      */
     public Filter(Predicate p, DbIterator child) {
         this.p = p;
-        this.child = child;
+        children = new DbIterator[1];
+        this.children[0] = child;
     }
 
     public Predicate getPredicate() {
@@ -29,22 +30,22 @@ public class Filter extends Operator {
     }
 
     public TupleDesc getTupleDesc() {
-        return child.getTupleDesc();
+        return children[0].getTupleDesc();
     }
 
     public void open() throws DbException, NoSuchElementException,
             TransactionAbortedException {
     	super.open();
-        child.open();
+        children[0].open();
     }
 
     public void close() {
-        child.close();
+        children[0].close();
         super.close();
     }
 
     public void rewind() throws DbException, TransactionAbortedException {
-        child.rewind();
+        children[0].rewind();
     }
 
     /**
@@ -59,8 +60,8 @@ public class Filter extends Operator {
     protected Tuple fetchNext() throws NoSuchElementException,
             TransactionAbortedException, DbException {
     	
-        while (child.hasNext()) {
-        	Tuple t = child.next();
+        while (children[0].hasNext()) {
+        	Tuple t = children[0].next();
         	if(p.filter(t)) {
         		return t;
         	}
@@ -70,12 +71,11 @@ public class Filter extends Operator {
 
     @Override
     public DbIterator[] getChildren() {
-    	return null;
+    	return children;
     }
 
     @Override
     public void setChildren(DbIterator[] children) {
-        // some code goes here
+        this.children = children;
     }
-
 }
