@@ -83,16 +83,16 @@ public class StringField implements Field {
                 return cmpVal != 0;
 
             case GREATER_THAN:
-                return cmpVal > 0;
-
-            case GREATER_THAN_OR_EQ:
-                return cmpVal >= 0;
-
-            case LESS_THAN:
                 return cmpVal < 0;
 
-            case LESS_THAN_OR_EQ:
+            case GREATER_THAN_OR_EQ:
                 return cmpVal <= 0;
+
+            case LESS_THAN:
+                return cmpVal > 0;
+
+            case LESS_THAN_OR_EQ:
+                return cmpVal >= 0;
 
             case LIKE:
                 return value.indexOf(iVal.value) >= 0;

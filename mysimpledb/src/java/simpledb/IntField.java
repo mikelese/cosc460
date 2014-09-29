@@ -58,16 +58,16 @@ public class IntField implements Field {
                 return value != iVal.value;
 
             case GREATER_THAN:
-                return value > iVal.value;
-
-            case GREATER_THAN_OR_EQ:
-                return value >= iVal.value;
-
-            case LESS_THAN:
                 return value < iVal.value;
 
-            case LESS_THAN_OR_EQ:
+            case GREATER_THAN_OR_EQ:
                 return value <= iVal.value;
+
+            case LESS_THAN:
+                return value > iVal.value;
+
+            case LESS_THAN_OR_EQ:
+                return value >= iVal.value;
 
             case LIKE:
                 return value == iVal.value;
