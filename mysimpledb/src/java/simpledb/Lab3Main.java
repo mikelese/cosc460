@@ -56,7 +56,7 @@ public class Lab3Main {
         
         scanStudents.open();
         SeqScan scanTakes = new SeqScan(tid2, Database.getCatalog().getTableId("takes"));
-        System.out.println(scanTakes.getTupleDesc());
+        //System.out.println(scanTakes.getTupleDesc());
                 
         JoinPredicate jp2 = new JoinPredicate(scanStudents.getTupleDesc().fieldNameToIndex(scanStudents.getTableName()+".sid"),
         		Predicate.Op.EQUALS,scanTakes.getTupleDesc().fieldNameToIndex(scanTakes.getTableName()+".sid"));
@@ -71,6 +71,25 @@ public class Lab3Main {
         
         joinTakes.close();
         Database.getBufferPool().transactionComplete(tid3);
-
+        
+        TransactionId tid4 = new TransactionId();
+        
+        scanStudents.open();
+        scanTakes = new SeqScan(tid3, Database.getCatalog().getTableId("takes"));
+        //System.out.println(scanTakes.getTupleDesc());
+                
+        JoinPredicate jp3 = new JoinPredicate(scanTakes.getTupleDesc().fieldNameToIndex(scanTakes.getTableName()+".sid"),
+        		Predicate.Op.EQUALS,scanStudents.getTupleDesc().fieldNameToIndex(scanStudents.getTableName()+".sid"));
+        Join joinTakes2 = new Join(jp3, scanStudents, scanTakes);
+        
+        System.out.println("Query results:");
+        joinTakes2.open();
+        while (joinTakes2.hasNext()) {
+            Tuple tup = joinTakes2.next();
+            System.out.println("\t"+tup);
+        }
+        
+        joinTakes2.close();
+        Database.getBufferPool().transactionComplete(tid4);
     }
 }
