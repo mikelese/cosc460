@@ -189,12 +189,26 @@ public class HeapFile implements DbFile {
 				if(pageNum == -1)
 					return false;
 				
-				if(pageNum < heapfile.numPages()-1)
+				if(tuples.hasNext()) {
 					return true;
-				else if(pageNum==heapfile.numPages()-1 && tuples.hasNext())
-					return true;
-				else
-					return false;
+				} else if (pageNum < heapfile.numPages()){
+					while (pageNum < heapfile.numPages()-1) {
+						pageNum++;
+						curPage = (HeapPage)Database.getBufferPool().getPage(tid, new HeapPageId(heapfile.getId(),pageNum), null);
+						tuples = curPage.iterator();
+						if(tuples.hasNext())
+							return true;
+					}
+				}
+				return false;
+
+				
+//				if(pageNum < heapfile.numPages()-1)
+//					return true;
+//				else if(pageNum==heapfile.numPages()-1 && tuples.hasNext())
+//					return true;
+//				else
+//					return false;
 			}
 
 			@Override
@@ -207,13 +221,13 @@ public class HeapFile implements DbFile {
 					if(tuples.hasNext()) {
 						return tuples.next();
 					} else {
-						Database.getBufferPool().discardPage(curPage.getId());
-						pageNum++;
-						curPage = (HeapPage)Database.getBufferPool().getPage(tid, new HeapPageId(heapfile.getId(),pageNum), null);
-						tuples = curPage.iterator();
-						if(tuples.hasNext())
-							return tuples.next();
-						else //TODO THIS MAY NEED MORE ERROR HANDLING!!! HASNEXT MAY BE FLAWED!
+//						Database.getBufferPool().discardPage(curPage.getId());
+//						pageNum++;
+//						curPage = (HeapPage)Database.getBufferPool().getPage(tid, new HeapPageId(heapfile.getId(),pageNum), null);
+//						tuples = curPage.iterator();
+//						if(tuples.hasNext())
+//							return tuples.next();
+						//else//TODO THIS MAY NEED MORE ERROR HANDLING!!! HASNEXT MAY BE FLAWED!
 							throw new NoSuchElementException("HeapFileIterator Error: There are no more tuples left to read");
 					}
 				}

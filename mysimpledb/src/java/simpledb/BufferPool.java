@@ -198,9 +198,9 @@ public class BufferPool {
      * break simpledb if running in NO STEAL mode.
      */
     public synchronized void flushAllPages() throws IOException {
-    	for(Page pg : cache) {
-    		if(pg.isDirty()!=null) {
-    			flushPage(pg.getId());
+    	for(int i=0;i<cache.size();i++) { //TODO, look into possible issues with realignment
+    		if(cache.get(i).isDirty()!=null) {
+    			flushPage(cache.get(i).getId());
     		}
     	}
     }

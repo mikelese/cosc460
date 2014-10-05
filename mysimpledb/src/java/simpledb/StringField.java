@@ -71,7 +71,7 @@ public class StringField implements Field {
      * @see Field#compare
      */
     public boolean compare(Predicate.Op op, Field val) {
-
+    	//System.out.println(this.getValue() + "  " + val.toString());
         StringField iVal = (StringField) val;
         int cmpVal = value.compareTo(iVal.value);
 

@@ -91,5 +91,36 @@ public class Lab3Main {
         
         joinTakes2.close();
         Database.getBufferPool().transactionComplete(tid4);
+        
+        TransactionId tid5 = new TransactionId();
+        
+        scanStudents.open();
+        scanTakes.open();
+        scanProfs.open();
+        
+        scanStudents.rewind();
+        scanTakes.rewind();
+        scanProfs.rewind();
+        
+        JoinPredicate jp5 = new JoinPredicate(0, Predicate.Op.EQUALS, 0); 
+        Join sidJoin = new Join(jp5, scanStudents, scanTakes);
+  
+        scanStudents.rewind();
+        scanTakes.rewind();
+        
+        Filter f = new Filter(new Predicate(1, Predicate.Op.EQUALS, new StringField("hay", Type.STRING_LEN)), scanProfs);
+                
+        JoinPredicate jp6 = new JoinPredicate(3, Predicate.Op.EQUALS, 2); 
+        Join finalJoin = new Join(jp6, sidJoin, f);        
+        
+        System.out.println("Query results:");
+        finalJoin.open();
+        while (finalJoin.hasNext()) {
+            Tuple tup = finalJoin.next();
+            System.out.println("\t"+tup.getField(1));
+        }
+        
+        Database.getBufferPool().transactionComplete(tid5);
+
     }
 }
