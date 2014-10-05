@@ -71,7 +71,7 @@ Michael Lese. I did not work with a partner.
 
 2. What did you think of this assignment?
 
-I thought it was a fair assignment. It took a more than an insubstantial amount of work, but it was a good was to understand relational algebra and database operations/queries. There wasn't too much debugging required.
+I thought it was a fair assignment. It took a more than an insubstantial amount of work, but it was a good way to understand relational algebra and database operations/queries. There wasn't too much debugging required.
 
 3. What was the hardest part of this assignment?
 
