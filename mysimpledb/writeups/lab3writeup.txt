@@ -67,20 +67,20 @@ After you complete lab 3, please answer the following questions.
 
 1. What is your name?  If you work with a partner, be sure to write both of your names.
 
-<Replace this text with your answer>
+Michael Lese. I did not work with a partner.
 
 2. What did you think of this assignment?
 
-<Replace this text with your answer>
+I thought it was a fair assignment. It took a more than an insubstantial amount of work, but it was a good was to understand relational algebra and database operations/queries. There wasn't too much debugging required.
 
 3. What was the hardest part of this assignment?
 
-<Replace this text with your answer>
+Translating the SQL queries took some thought, and there was a mild off by one error that needed correction in my implementation of the DbIterator interface.
 
 4. Describe any missing or incomplete elements of your code.
 
-<Replace this text with your answer>
+It's all there.
 
 5. Roughly how long did you spend working on this lab?
 
-<Replace this text with your answer>
+It was probably around 8 hours, give or take 90 minutes.
