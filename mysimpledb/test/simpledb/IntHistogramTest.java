@@ -24,14 +24,14 @@ public class IntHistogramTest {
         for (int c = 0; c < 33554432; c++) {
             h.addValue((c * 23) % 101);    // Pseudo-random number; at least get a distribution
         }
-
+        //System.out.println("bucket " + h.getBucket(0));
         // Try printing out all of the values; make sure "estimateSelectivity()"
         // cause any problems
         double selectivity = 0.0;
         for (int c = 0; c < 101; c++) {
             selectivity += h.estimateSelectivity(Op.EQUALS, c);
         }
-
+        //System.out.println(selectivity);
         // All the selectivities should add up to 1, by definition.
         // Allow considerable leeway for rounding error, though
         // (Java double's are good to 15 or so significant figures)
@@ -44,7 +44,7 @@ public class IntHistogramTest {
     @Test
     public void extraBuckets() {
         IntHistogram h = new IntHistogram(1000, 1, 10);
-
+        //System.out.println(h.getBucket(10));
         // Set some values
         h.addValue(3);
         h.addValue(3);
@@ -114,7 +114,6 @@ public class IntHistogramTest {
 
         Assert.assertEquals(h.estimateSelectivity(Op.LESS_THAN, 2), 0.2, TOLERANCE);
         Assert.assertEquals(h.estimateSelectivity(Op.LESS_THAN, 4), 0.8, TOLERANCE);
-
         Assert.assertEquals(0.0, h.estimateSelectivity(Op.LESS_THAN, -1), TOLERANCE);
         Assert.assertEquals(1.0, h.estimateSelectivity(Op.LESS_THAN, 12), TOLERANCE);
     }
@@ -217,7 +216,14 @@ public class IntHistogramTest {
         h.addValue(3);
         h.addValue(3);
         h.addValue(10);
-
+        
+        System.out.println(h.bucketsize(0));
+        System.out.println(h);
+        
+        for(int i=1;i<=10;i++) {
+        	System.out.println(i+" in "+h.getBucket(i));
+        }
+        
         Assert.assertEquals(3.0/4.0 * 0.5, h.estimateSelectivity(Op.EQUALS, 3), TOLERANCE);
         Assert.assertEquals(3.0/4.0 * 0.5, h.estimateSelectivity(Op.EQUALS, 4), TOLERANCE);
         Assert.assertEquals(1.0/4.0 * 0.5, h.estimateSelectivity(Op.EQUALS, 9), TOLERANCE);
@@ -230,13 +236,12 @@ public class IntHistogramTest {
     @Test
     public void uniformTestWithRange() {
         IntHistogram h = new IntHistogram(5, 1, 10);
-
         // Set some values
         h.addValue(3);
         h.addValue(3);
         h.addValue(3);
         h.addValue(10);
-
+                
         Assert.assertEquals(3.0/4.0 * 0.5 + 1.0/4.0, h.estimateSelectivity(Op.GREATER_THAN_OR_EQ, 4), TOLERANCE);
         Assert.assertEquals(1.0/4.0, h.estimateSelectivity(Op.GREATER_THAN_OR_EQ, 9), TOLERANCE);
     }
@@ -253,7 +258,6 @@ public class IntHistogramTest {
         h.addValue(25);
         h.addValue(25);
         h.addValue(25);
-
         Assert.assertEquals(1.0/4.0 * 1.0/5.0, h.estimateSelectivity(Op.EQUALS, 21),TOLERANCE);
         Assert.assertEquals(3.0/4.0 * 1.0/6.0, h.estimateSelectivity(Op.EQUALS, 26), TOLERANCE);
     }

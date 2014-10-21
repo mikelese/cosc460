@@ -1,10 +1,18 @@
 package simpledb;
 
+import java.util.ArrayList;
+
+import simpledb.Predicate.Op;
+
 /**
  * A class to represent a fixed-width histogram over a single integer-based field.
  */
 public class IntHistogram {
-
+	
+	private final int min;
+	private final int max;
+	//TODO make private
+	public int[] buckets;
     /**
      * Create a new IntHistogram.
      * <p/>
@@ -22,7 +30,24 @@ public class IntHistogram {
      * @param max     The maximum integer value that will ever be passed to this class for histogramming
      */
     public IntHistogram(int buckets, int min, int max) {
-        // some code goes here
+        //if(max > min)
+    	
+    	this.min = min;
+        this.max = max;
+        
+        if(max-min+1 >buckets) { 
+        	this.buckets = new int[buckets];
+        } else {
+        	this.buckets = new int[max-min+1];
+        }
+    }
+    //TODO Make private
+    public int bucketsize(int index) {
+    	int ret = (max-min+1)/buckets.length;
+    	if(index==buckets.length-1 && (max-min+1)%buckets.length != 0) {
+    		ret+=(max-min+1)%buckets.length;
+    	}
+    	return ret;
     }
 
     /**
@@ -31,7 +56,23 @@ public class IntHistogram {
      * @param v Value to add to the histogram
      */
     public void addValue(int v) {
-        // some code goes here
+    	if (v>max || v<min) {
+    		throw new RuntimeException("Illegal value provided. Value must be within the specified range.");
+    	}
+    	//System.out.println("Adding " + v + " to " + getBucket(v));
+    	//System.out.println((v-min)/(double)bucketsize(0));
+    	buckets[getBucket(v)]++;
+    	//System.out.println(getBucket(v));
+    }
+    
+    //TODO Restore to private
+    public int getBucket(int v) {
+    	//System.out.println("Bucket Size:" + buckets.length);
+    	if(v==max) {
+    		//put max value into last bucket
+    		return buckets.length-1;
+    	} 
+    	return (int) ((double)(v-min)/(double)bucketsize(0));
     }
 
     /**
@@ -45,16 +86,74 @@ public class IntHistogram {
      * @return Predicted selectivity of this particular operator and value
      */
     public double estimateSelectivity(Predicate.Op op, int v) {
-
-        // some code goes here
-        return -1.0;
+    	double ntups = 0;
+    	double left = getBucket(v)*bucketsize(getBucket(v))+min;
+    	//double right =
+    	
+    	for (int i:buckets) {
+    		ntups+=i;
+    	}
+    	double numEqual;
+    	double numLess;
+    	if(v<min) {
+    		numLess=0;
+    		numEqual=0;
+    	}else if (v>max){
+    		numLess = ntups;
+    		numEqual=0;
+    	} else {
+    		numEqual = buckets[getBucket(v)]/(double)bucketsize(getBucket(v));
+     		numLess=0;
+     		
+     		for(int i=getBucket(v)-1;i>=0;i--) {
+        		numLess+=buckets[i];
+        	}
+     		numLess+= (double)buckets[getBucket(v)]*((double)buckets[getBucket(v)]/ntups)*((v-left)/(double)bucketsize(getBucket(v)));
+     		System.out.println(numLess);
+     		System.out.println(ntups);
+    	}   	
+    			
+        switch(op) {
+        
+        case EQUALS:
+        	return numEqual/ntups;
+        case NOT_EQUALS:
+        	return (ntups-numEqual)/ntups;
+        case GREATER_THAN:
+        	return (ntups-(numEqual+numLess))/ntups;
+        case GREATER_THAN_OR_EQ:
+        	return (ntups-numLess)/ntups;
+        case LESS_THAN:
+        	return numLess/ntups;
+        case LESS_THAN_OR_EQ:
+        	return (numLess+numEqual)/ntups;
+		default:
+			//Includes LIKE
+			throw new IllegalArgumentException("IntHistogram Error: Unsupported operation type."); 
+        }
     }
 
     /**
      * @return A string describing this histogram, for debugging purposes
      */
     public String toString() {
-        // some code goes here
-        return null;
-    }
+    	String ret = "";
+    	int loc = min;
+    	
+    	for(int i=0;i<buckets.length;i++) {
+    		ret +="Bucket "+i+": ";
+    		ret += buckets[i] + " (";
+    		ret += loc+"-";
+    		
+    		if(i==buckets.length-1)
+    			ret+=max;
+    		else
+    			ret +=(loc+ bucketsize(i)-1);
+    		
+    		ret+=")\n";
+    		loc = loc+bucketsize(i+1);
+    	}
+    	
+    	return ret;
+    }    
 }

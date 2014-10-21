@@ -6,6 +6,13 @@ package simpledb;
 public class StringAggregator implements Aggregator {
 
     private static final long serialVersionUID = 1L;
+    
+    private int gbfield;
+    private Type gbfieldtype;
+    private int afield;
+    private Op what;
+    
+    private Tuple results;
 
     /**
      * Aggregate constructor
@@ -18,7 +25,14 @@ public class StringAggregator implements Aggregator {
      */
 
     public StringAggregator(int gbfield, Type gbfieldtype, int afield, Op what) {
-        // some code goes here
+        this.gbfield = gbfield;
+        this.gbfieldtype = gbfieldtype;
+        this.afield = afield;
+        
+        if(what != Op.COUNT)
+        	throw new IllegalArgumentException("StringAggregator Error: Only Count is supported.");
+        
+        this.what = what;        
     }
 
     /**

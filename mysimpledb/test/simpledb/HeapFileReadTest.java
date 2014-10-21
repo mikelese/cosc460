@@ -97,7 +97,9 @@ public class HeapFileReadTest extends SimpleDbTestBase {
         it.open();
         int count = 0;
         while (it.hasNext()) {
-            assertNotNull(it.next());
+        	Tuple temp = it.next();
+        	//System.out.println(temp);
+            assertNotNull(temp);
             count += 1;
         }
         assertEquals(3, count);
