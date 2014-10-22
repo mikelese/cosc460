@@ -20,11 +20,18 @@ Walk thru 2: simpledb.Parser.processNextStatement()
 
 Walk thru 3: simpledb.Parser.handleQueryStatement()
 
-	<fill this in>	
-
+	This method first calls simpledb.Parser.parseQueryLogicalPlan(), which takes as its parameters the zQuery and the tid, and returns the logical plan to handle the query.
+	It then gets the physical plan using the LogicalPlan.physicalPlan method (to be explained below).
+	
 Walk thru 4: simpledb.Parser.parseQueryLogicalPlan()
 
-	<fill this in>
+	parseQueryLogicalPlan then creates a logical plan, and parses through the tables in the from statement of the zQL query, adding any aliases and the table included in the from clause.
+		
+	The where clauses are then parsed and checked to see if there the current query is nested, which is unsupported, and processExpression is called on each parsed valid expression. 
+	
+	processExpression gets the operator (only AND is supported), and operands of each expression, and handles for the case where there are multiple chained operators by treating them associatively.
+	
+	 
 
 	Note: this method is rather long and complex.  Your walk thru should focus
 	on the high-level ideas.  Specifically, explain how SQL query is processed to construct the LogicalPlan.  
