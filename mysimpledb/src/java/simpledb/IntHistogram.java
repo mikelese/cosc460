@@ -104,13 +104,11 @@ public class IntHistogram {
     	} else {
     		numEqual = buckets[getBucket(v)]/(double)bucketsize(getBucket(v));
      		numLess=0;
-     		
+     		     		
      		for(int i=getBucket(v)-1;i>=0;i--) {
         		numLess+=buckets[i];
         	}
-     		numLess+= (double)buckets[getBucket(v)]*((double)buckets[getBucket(v)]/ntups)*((v-left)/(double)bucketsize(getBucket(v)));
-     		System.out.println(numLess);
-     		System.out.println(ntups);
+     		numLess+= (double)buckets[getBucket(v)]*((v-left)/(double)bucketsize(getBucket(v)));
     	}   	
     			
         switch(op) {
