@@ -231,7 +231,7 @@ public class BufferPool {
      */
     public synchronized void flushPages(TransactionId tid) throws IOException {
     	for(Page pg: cache)   { // cosc460
-    		if(pg.isDirty()== tid) { //TODO Check efficiency
+    		if(pg.isDirty()!=null) { //TODO Check efficiency
     			flushPage(pg.getId());
     		}
     	}
@@ -244,7 +244,9 @@ public class BufferPool {
     private synchronized void evictPage() throws DbException {
         Page pg = cache.removeLast();
         try {
-			flushPage(pg.getId());
+        	if(pg.isDirty()!=null) {
+        		flushPage(pg.getId());
+        	}
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();

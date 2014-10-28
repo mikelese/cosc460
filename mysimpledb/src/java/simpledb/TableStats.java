@@ -3,6 +3,9 @@ package simpledb;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
+import simpledb.Predicate.Op;
+import simpledb.TupleDesc.TDItem;
+
 /**
  * TableStats represents statistics (e.g., histograms) about base tables in a
  * query.
@@ -12,9 +15,14 @@ import java.util.concurrent.ConcurrentHashMap;
 public class TableStats {
 
     private static final ConcurrentHashMap<String, TableStats> statsMap = new ConcurrentHashMap<String, TableStats>();
+    
+    private Object[] hists;
+    private HeapFile file;
+    private int numTuples = 0;
+    private int[] numDistinct;
 
-    static final int IOCOSTPERPAGE = 1000;
-
+    static /*final*/ int IOCOSTPERPAGE;
+    
     public static TableStats getTableStats(String tablename) {
         return statsMap.get(tablename);
     }
@@ -50,7 +58,8 @@ public class TableStats {
         System.out.println("Computing table stats.");
         while (tableIt.hasNext()) {
             int tableid = tableIt.next();
-            TableStats s = new TableStats(tableid, IOCOSTPERPAGE);
+            TableStats s;
+			s = new TableStats(tableid, IOCOSTPERPAGE);
             setTableStats(Database.getCatalog().getTableName(tableid), s);
         }
         System.out.println("Done.");
@@ -71,16 +80,81 @@ public class TableStats {
      * @param ioCostPerPage The cost per page of IO. This doesn't differentiate between
      *                      sequential-scan IO and disk seeks.
      */
-    public TableStats(int tableid, int ioCostPerPage) {
-        // For this function, you'll have to get the
-        // DbFile for the table in question,
-        // then scan through its tuples and calculate
-        // the values that you need.
-        // You should try to do this reasonably efficiently, but you don't
-        // necessarily have to (for example) do everything
-        // in a single scan of the table.
-        // some code goes here
+    public TableStats(int tableid, int ioCostPerPage){
+        this.IOCOSTPERPAGE = ioCostPerPage;
+        this.file = (HeapFile)Database.getCatalog().getDatabaseFile(tableid);
+       
+        TupleDesc td = Database.getCatalog().getTupleDesc(tableid);
+        this.numDistinct = new int[td.numFields()];
+        ArrayList<HashSet<Field>> arr = new ArrayList<HashSet<Field>>();
+                
+        SeqScan ss = new SeqScan(null,tableid);
+        Iterator<TDItem> it;
+        try {
+            ss.open();
+			Tuple temp = ss.next();
+			numTuples++;
+			
+			Tuple min = new Tuple(td);
+			Tuple max = new Tuple(td);
+			
+			for(int i=0;i<td.numFields();i++) {
+				min.setField(i, temp.getField(i));
+				max.setField(i, temp.getField(i));
+			}
+
+			this.hists = new Object[td.numFields()];
+			while(ss.hasNext()) {
+				temp = ss.next();
+				it = td.iterator();
+				int index = 0;
+				while(it.hasNext()) {
+					TDItem tdi = it.next();
+					if(tdi.fieldType.equals(Type.INT_TYPE)) {
+						//Long story as to why this is the implementation method
+						if(((IntField)temp.getField(index)).getValue() > ((IntField)max.getField(index)).getValue()) {
+							max.setField(index, temp.getField(index));
+						}
+						if(((IntField)temp.getField(index)).getValue() < ((IntField)min.getField(index)).getValue()) {
+							min.setField(index, temp.getField(index));
+						}
+					}    
+					index++;
+				}
+				numTuples++;
+			}			
+						
+			ss.rewind();
+			for(int i=0;i<hists.length;i++) {
+				if(td.getFieldType(i).equals(Type.INT_TYPE)) {
+			    	hists[i] = new IntHistogram(NUM_HIST_BINS, ((IntField)min.getField(i)).getValue(), ((IntField)max.getField(i)).getValue());
+				} else {
+					hists[i] = new StringHistogram(NUM_HIST_BINS);
+				}
+		    	arr.add(new HashSet<Field>());
+			}
+			
+			while(ss.hasNext()) {
+				Tuple tp = ss.next();
+				for(int i=0;i<tp.getTupleDesc().numFields();i++) {
+					if(tp.getField(i).getType().equals(Type.INT_TYPE)) {
+			    		((IntHistogram)hists[i]).addValue(((IntField)tp.getField(i)).getValue());
+					} else {
+						((StringHistogram)hists[i]).addValue(((StringField)tp.getField(i)).getValue());
+					}
+		    		arr.get(i).add(tp.getField(i));
+				}
+			}
+			for(int i=0;i<numDistinct.length;i++) {
+				numDistinct[i] = arr.get(i).size();
+			}
+		} catch (NoSuchElementException | TransactionAbortedException
+				| DbException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} 
     }
+    
 
     /**
      * Estimates the cost of sequentially scanning the file, given that the cost
@@ -95,8 +169,7 @@ public class TableStats {
      * @return The estimated cost of scanning the table.
      */
     public double estimateScanCost() {
-        // some code goes here
-        return 0;
+        return this.file.numPages()*IOCOSTPERPAGE;
     }
 
     /**
@@ -108,8 +181,13 @@ public class TableStats {
      * selectivityFactor
      */
     public int estimateTableCardinality(double selectivityFactor) {
-        // some code goes here
-        return 0;
+    	System.out.println(this.numTuples);
+        double temp = selectivityFactor * (double)this.numTuples;
+        if(temp > 0 && temp < 1) {
+        	return 1;
+        } else {
+        	return (int)temp;
+        }
     }
 
     /**
@@ -125,9 +203,7 @@ public class TableStats {
      * @return The number of distinct values of the field.
      */
     public int numDistinctValues(int field) {
-        // some code goes here
-        throw new UnsupportedOperationException("implement me");
-
+    	return numDistinct[field];
     }
 
     /**
@@ -141,8 +217,11 @@ public class TableStats {
      * predicate
      */
     public double estimateSelectivity(int field, Predicate.Op op, Field constant) {
-        // some code goes here
-        return 1.0;
+    	if(file.getTupleDesc().getFieldType(field).equals(Type.INT_TYPE)) {
+    		return ((IntHistogram)hists[field]).estimateSelectivity(op, ((IntField)constant).getValue());
+    	} else {
+    		return ((StringHistogram)hists[field]).estimateSelectivity(op, ((StringField)constant).getValue());
+    	}
     }
 
 }

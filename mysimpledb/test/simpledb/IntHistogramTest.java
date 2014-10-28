@@ -219,11 +219,7 @@ public class IntHistogramTest {
         
         System.out.println(h.bucketsize(0));
         System.out.println(h);
-        
-        for(int i=1;i<=10;i++) {
-        	System.out.println(i+" in "+h.getBucket(i));
-        }
-        
+                
         Assert.assertEquals(3.0/4.0 * 0.5, h.estimateSelectivity(Op.EQUALS, 3), TOLERANCE);
         Assert.assertEquals(3.0/4.0 * 0.5, h.estimateSelectivity(Op.EQUALS, 4), TOLERANCE);
         Assert.assertEquals(1.0/4.0 * 0.5, h.estimateSelectivity(Op.EQUALS, 9), TOLERANCE);

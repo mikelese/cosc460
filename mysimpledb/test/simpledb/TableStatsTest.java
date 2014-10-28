@@ -162,7 +162,7 @@ public class TableStatsTest extends SimpleDbTestBase {
         final int maxCellVal = 32;    // Tuple values are randomized between 0 and this number
         TableStats s = new TableStats(this.tableId, IO_COST);
 
-        for (int col = 0; col < 10; col++) {
+        for (int col = 0; col < 10; col++) {	
             Assert.assertEquals(32, s.numDistinctValues(col));
         }
     }
