@@ -21,17 +21,25 @@ Walk thru 2: simpledb.Parser.processNextStatement()
 Walk thru 3: simpledb.Parser.handleQueryStatement()
 
 	This method first calls simpledb.Parser.parseQueryLogicalPlan(), which takes as its parameters the zQuery and the tid, and returns the logical plan to handle the query.
-	It then gets the physical plan using the LogicalPlan.physicalPlan method (to be explained below).
+	It then gets the physical plan using the LogicalPlan.physicalPlan method (to be explained below). The physical and logical plans of the query are then set.
+	The QueryPlanVisualizer is then used on the physical plan, if possible, skipping this step if the requisite classes are not present. 
 	
 Walk thru 4: simpledb.Parser.parseQueryLogicalPlan()
 
 	parseQueryLogicalPlan then creates a logical plan, and parses through the tables in the from statement of the zQL query, adding any aliases and the table included in the from clause.
-		
-	The where clauses are then parsed and checked to see if there the current query is nested, which is unsupported, and processExpression is called on each parsed valid expression. 
-	
-	processExpression gets the operator (only AND is supported), and operands of each expression, and handles for the case where there are multiple chained operators by treating them associatively.
-	
+	The where clauses are then parsed and checked to see if there the current query is nested, which is unsupported, and processExpression is called on each parsed valid expression.
+	A list of joins is gradually generated as the parsing progresses. 
+	processExpression gets the operator (only AND is supported), and operands of each expression, and handles for the case where there are multiple chained operators by treating them associatively and iterating through them.
+	Next, a predicate for the parsed operation is created and it is determined whether either operator is a constant or not, and whether the operation is valid (a binary expression between constants, fields, or subqueries.
+	If the operation is a join, two of any of the following: a subquery DBIterator, a relevant Field, or a constant, are added as a join, along with the relevant predicate.
+	Otherwise, the same is done with a filter and a single relevant operand of the aforementioned types.
 	 
+	Next, any group by fields are identified (only single simple group bys are supported). 
+	Finally, select list fields are parsed, and aggregates are identified. Validity (no expressions, aggregates only over one field) is determined.
+	If there is a group by, the aggregates are adjusted accordingly.
+	All projections and aggregates are added to the select list after parsing, and other validity conditions, like group bys requiring an aggregate, are checked.
+
+	Finally, order bys are checked for, their validity (only one is supported) is ascertained, and they are added to the logical plan, with the field that the ordering occurs with.
 
 	Note: this method is rather long and complex.  Your walk thru should focus
 	on the high-level ideas.  Specifically, explain how SQL query is processed to construct the LogicalPlan.  
@@ -43,28 +51,46 @@ Walk thru 5: simpledb.LogicalPlan.physicalPlan()
 		- filterSelectivities
 		- statsMap
 		- subplanMap
+	
+	This method first iterates through all tables provided to the LogicalPlan class, getting a sequential scan object for each, to be stored in a hashmap. The same is done with the already-attained stats for the tables. A final hashmap, filterSelectivities, is set to 1 with the table alias as the key.
+	Next, all of the filters in the LogicalPlan are iterated through. The corresponding table for that filter is fetched, and a filter operation is run. This filter object is added to the subplan map.
+	TableStats, a wrapper for the previous histogram selectivity work we did, is called on the table we are currently working with, and the result is used to set (multiply) the filterSelectivities value for this table.
+	
+	Next, a JoinOptimizer object is created using the already-generated list of joins from the logical plan. The joins are ordered based on calculated selectivities.
+	All potential joins in the logical plan are iterated through, and combined into join nodes, in effect, this is done by the joininitializer function, which returns consisting of the joins, replacing the first item in the subplan map. If the join does not involve a subquery, the second item is removed from the subplan map.
 
-	<fill this in>
+	Finally, groupby, aggregates, and ordering is accounted for, using the existing single iterator in the subplan map.
 
 Walk thru 6: simpledb.JoinOptimizer.orderJoins()
 
-	<fill this in>
+Using the costAndCard private method, this method should (perhaps recursively) calculate the optimal left-deep join using dynamic programming, using a variant of the methodology, covered in class.
+The costAndCard results inform which strategy is used to perform all of the joins, building upward, in the most efficient manner possible, using the statistics provided as a parameter.
+This remains to be implemented at this point.
 
 Walk thru 7: JoinOptimizer.computeCostAndCardOfSubplan()
 
-	<fill this in>
+This method is the private method used by orderJoins to create the left-deep optimized join.
+
+This is done using dynamic programmatic logic explained in class. The parameters, in addition to the relevant naming information, statistics, etc. include the node to join/remove from the larger tree with the existing set, and the set of nodes as a whole, which includes the item to be joined.
+The item to be removed is then removed from a copy of the join set called news.
+
+There are several cases that can occur at this point. The base case is that the item to be added, is the only item in this set, so we are joining a singleton set. This case is the simplest.
+Otherwise, we are joining non singleton sets. In this case we draw off a cache of previous joins (the dynamic programming aspect which reduces runtime) and use the getOrder function of the cache, which keeps track of the current best join for a given set.
+The cost of this best join is also taken from the cache, and the cost of the left and right joins are compared, and the less-costly option is returned.
 
 Walk thru 8: JoinOptimizer.estimateJoinCost()
 
-	<fill this in>
+This implementation of SimpleDB used only a simple nested loops join, so the cost is calculated using the number of tuples in the outer relation plus the product of the number of tuples in the inner and outer relations.
+This can be estimated using the estimated cardinalities of both relations provided as parameters.
 
 Walk thru 9: JoinOptimizer.estimateJoinCardinality()
 
-	<fill this in>
+This could function by calling estimateJoinTableCardinality, and then using the join condition, estimating the number of tuples fulfilling the necessary join criteria, thus giving us an approximate join table cardinality.
 
 Walk thru 10 query.execute()
 	
 	Note: This is called inside simpledb.Parser.processNextStatement().  Refer back to Walk thru 2.
 
-	<fill this in>
-
+Query is essentially a wrapper class for a DbIterator, and is initialized based on what the parsing of processNextStatement determines what the transaction is.
+Query.execute is effectively a print statement, printing the entirety of the DbIterator inside the Query class's contents along with other information.
+This is how we view the results of a query.

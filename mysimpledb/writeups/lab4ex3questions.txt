@@ -5,21 +5,39 @@ Answer these questions.  With each question is a hint as to which part of the co
 
 (Walk thru 1) How many instances of the TableStats class are created?
 
+One TableStats instance is created, as all Tables in the Database are iterated through.
+
 (Walk thru 4) In class, we said a logical plan is a relational algebra tree.  That's not how it's represented in SimpleDB.  How is it represented? 
+
+The relational plan is in essence a grouping of lists, including tables (from), operations (where) between discrete fields, constants, or subquery results, or appropriate filters, and aggregates/projections (select), and any groupby or orderby statements.
+These lists are functionally similar to a tree, but the preparation for it is different.
 
 (Walk thru 5) The physicalPlan is a relational algebra tree.  Describe the basic shape of this tree in terms of which ops go where.
 
+First, filter operations are called, then joins are propagated up the tree, sometimes using the results of previous joins and filters, until there is only on DbIterator, representing the end result (or an error). Finally, group by, aggregates, and order by ops are handled for.
+
 (Walk thru 5) Suppose a query applies multiple filters to a single table.  For example, the query described in the lab write up filters on both actor first and last name.  In such cases, how is the selectivity estimated?  
+
+The existing probability (which starts at 1.0, and is multiplied by the estimateSelectivity results) is once more multiplied by the newly calculated selectivity of the filter, consistent with principles of probability.
 
 (Walk thru 5) Explain the meaning of this if statement.  Why should the subplanMap have size 0 or 1 at this point?
 
     if (subplanMap.size() > 1) {
         throw new ParsingException("Query does not include join expressions joining all nodes!");
     }
+    
+    By the point we have gotten to this code, there should be only one DbIterator in the subplanMap, as all of the logical join nodes in the map have been combined and optimized. This Iterator is the result of the optimized join, and contains all relevant tuples. If this did not happen, then the joins called created two separate join iterators, neither of which are joined in the query to begin with.
 
 (Walk thru 7) What does computeCostAndCardOfSubplan do when the joinSet contains only a single join, the joinToRemove?
 
+If the join set is empty after the removal of the the item to be added, the attribute of said item to be joined are used as the cost and estimated cardinality. This is the base case.
+
 (Walk thru 9) Suppose we are considering a join between a table A and the result of a join between B and C.  Assume table A is the outer relation in the join.  What is the cost estimate?  Your expression should be in terms of the sizes (# pages, # tuples) of the base relations A, B, C.
 
-(Walk thru 10) In lab 3, you write Join and Filter operators.  Both of these support the DbIterator interface.  When/where are these iterators called?
+#tuplesInA + (#tuplesInA * #tuplesInJoin)
 
+#tuplesInJoin ≈ #tuples in l
+
+(Walk thru 10) In lab 3, you write Join and Filter operators.  Both of these support the DbIterator interface.  When/where are these iterators called?
+These iterators are called by the Query class, which is a wrapper for a DbInterface object, typically an Operation. Query.start, Query.close, call DbIterator.open and DbIterator.close respectively, and execute calls next as it iterates through the DbIterator.
+The DbIterator is the ultimate result of the Query parsed by the processNextStatement function. 
