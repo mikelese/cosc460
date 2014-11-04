@@ -10,20 +10,51 @@ and a.fname='Ginger' and a.lname='Rogers';
 
 Query 1 optimizer's plan:
 
-<fill in here>
+ π(d.fname,d.lname),card:0
+                      |
+                      ⨝(a.id=c.pid),card:0
+  ____________________|_____________________
+  |                                        |
+  σ(a.lname=Rogers),card:1                 ⨝(c.mid=m.mid),card:2597
+  |                           _____________|______________
+  σ(a.fname=Ginger),card:1    |                          |
+  |                           |                          ⨝(m.did=d.id),card:2597
+  |                           |              ____________|____________
+  |                         scan(Casts c)    |                       |
+scan(Actor a)                              scan(Movie_Director m)  scan(Director d)
 
 Query 1 plan explanation:
 
-<fill in here>
+This query's plan is optimized by the order in which joins are performed, so that the inner relation of the join is always the smaller of the two relations. This join is left-deep (technically right deep, as printed) as was done in class. Cardinality is the same for the first few joins, which makes sense, as there is no filtering, and these relations all correspond. The final join, where an actor is filtered for, and then joined, is of small cardinality, and ultimately results in an empty final result.
 
 Query 2:
 
-<fill in here>
+select m.name, m.year
+from Actor a, Casts c, Movie m, Movie_Director md, Director d 
+where a.lname='Harrison' and a.lname='Ford' 
+and a.id=c.mid and c.mid = m.id and m.id = md.mid and d.id = md.did and d.lname = 'Lucas';
 
-Query 1 optimizer's plan:
+Query 2 optimizer's plan:
 
-<fill in here>
+                        π(m.name,m.year),card:0
+                        |
+                        ⨝(a.id=c.mid),card:0
+  ______________________|______________________
+  |                                           |
+  σ(a.lname=Ford),card:1                      ⨝(c.mid=m.id),card:1
+  |                             ______________|_______________
+  σ(a.lname=Harrison),card:1    |                            |
+  |                             |                            ⨝(m.id=md.mid),card:1
+  |                             |              ______________|______________
+  |                             |              |                           |
+  |                             |              |                           ⨝(d.id=md.did),card:1
+  |                             |              |              _____________|______________
+  |                             |              |              |                          |
+  |                             |              |              σ(d.lname=Lucas),card:1    |
+scan(Actor a)                   |            scan(Movie m)    |                          |
+                              scan(Casts c)                 scan(Director d)           scan(Movie_Director md)
 
-Query 1 plan explanation:
 
-<fill in here>
+Query 2 plan explanation:
+
+This query is fairly specific, resulting in small cardinalities throughout the query. The specific id of any director named lucas is found, and using the relation md, is linked to a specific movie, which is then compared to the very large casts relation, which is then compared to the filtered actor relation for Harrison Ford. Generally speaking, the cardinality estimates are quite low, meaning that most of the choices for join ordering were centered on the cost of reading in the tables, making the cardinality of the tuples being read in the primary factor in the join ordering decisions.

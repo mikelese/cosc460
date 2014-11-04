@@ -67,10 +67,13 @@ public class Delete extends Operator {
         while(children[0].hasNext()) {
         	try {
 				Database.getBufferPool().deleteTuple(tid, children[0].next());
-			} catch (NoSuchElementException | IOException e) {
+			} catch (NoSuchElementException e)  {
 				System.err.println("Delete error");
 				e.printStackTrace();
-			}
+			} catch (IOException e) {
+				System.err.println("Delete error");
+				e.printStackTrace();
+			} 
         	numChanged++;
         }
     	

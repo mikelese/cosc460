@@ -148,8 +148,13 @@ public class TableStats {
 			for(int i=0;i<numDistinct.length;i++) {
 				numDistinct[i] = arr.get(i).size();
 			}
-		} catch (NoSuchElementException | TransactionAbortedException
-				| DbException e) {
+		} catch (NoSuchElementException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (TransactionAbortedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (DbException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} 
