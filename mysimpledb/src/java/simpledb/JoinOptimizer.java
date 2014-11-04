@@ -240,32 +240,15 @@ public class JoinOptimizer {
             HashMap<String, Double> filterSelectivities, boolean explain)
             throws ParsingException {
     	
-//    			1.  j = set of join nodes
-//    			2.  for (i in 1...|j|):  // First find best plan for single join, then for two joins, etc. 
-//    			3.      for s in {all length i subsets of j} // Looking at a concrete subset of joins
-//    			4.          if (i == 1)
-//    			5.              // s consists of a single join node
-//    			6.              plan = best way to perform join in s
-//    			7.              optjoin(s) = plan
-//    			8.          else
-//    			9.              // s contains multiple join nodes
-//    			10.             bestPlan = {}                // Find the best plan for this concrete subset 
-//    			11.             for s' in {all length i-1 subsets of s} 
-//    			12.                  lastJoin = s - s'       // There is exactly one join node in s but not in s'
-//    			13.                  subplan = optjoin(s')   // Look-up in the cache the best query plan for s'
-//    			14.                  plan = best way to join lastJoin to subplan  // Now find the best plan to 
-//    			15.                                                               // extend s' by one join to get s
-//    			16.                  if (cost(plan) < cost(bestPlan))
-//    			17.                      bestPlan = plan     // Update the best plan for computing s
-//    			18.             optjoin(s) = bestPlan
-//    			19.  return optjoin(j)
     	PlanCache pc = new PlanCache();
     	
     	for(int size=1; size<=joins.size();size++) {
     		Set<Set<LogicalJoinNode>> s = enumerateSubsets(joins, size);
     		Iterator<Set<LogicalJoinNode>> iter = s.iterator();
+    		
     		while(iter.hasNext()) {
     			Set<LogicalJoinNode> temp = iter.next();
+    			
 				CostCard best = new CostCard();
 				best.cost = Double.MAX_VALUE; //This seems like a haphazard way of doing this
 				for(LogicalJoinNode node : joins) {
@@ -275,7 +258,6 @@ public class JoinOptimizer {
 						pc.addPlan(temp, cc.cost, cc.card, cc.plan);
 					}
 				}
-       			
     		}
     	}
     	
