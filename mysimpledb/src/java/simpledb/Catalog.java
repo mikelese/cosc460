@@ -19,7 +19,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class Catalog {
 	private HashMap<String,DbFile> files;
 	private HashMap<String,String> pkeys;
-	private HashMap<String,Integer> ids;
+	private HashMap<Integer,String> ids;
 
     /**
      * Constructor.
@@ -28,7 +28,7 @@ public class Catalog {
     public Catalog() {
         this.files = new HashMap<String,DbFile>();
      	this.pkeys = new HashMap<String,String>();
-    	this.ids = new HashMap<String,Integer>();
+    	this.ids = new HashMap<Integer,String>();
     }
 
     /**
@@ -44,7 +44,7 @@ public class Catalog {
     public void addTable(DbFile file, String name, String pkeyField) {
         files.put(name, file);
         pkeys.put(name, pkeyField);
-        ids.put(name, file.getId());
+        ids.put(file.getId(),name);
     }
 
     public void addTable(DbFile file, String name) {
@@ -68,16 +68,21 @@ public class Catalog {
      *
      * @throws NoSuchElementException if the table doesn't exist
      */
-    public int getTableId(String name) throws NoSuchElementException {
-    	if(name==null)throw new NoSuchElementException("Catalog Error: Null reference name");
+    public int getTableId(String name) throws NoSuchElementException {    	
+    	if(name==null) throw new NoSuchElementException("Catalog Error: Null reference name");
     	
-    	int ret;
-    	try{
-    		ret=ids.get(name);
-    	} catch (NullPointerException e) {
-    		throw new NoSuchElementException("Catalog Error: Null reference name");
+    	Iterator<Integer> keys = ids.keySet().iterator();
+    	
+    	if(ids.size()==0) throw new NoSuchElementException("Catalog Error: No ids in catalog");
+    	
+    	while(keys.hasNext()) {
+    		int key = keys.next();
+    		if(ids.get(key).equals(name))  {
+    			return key; 		
+    		}
     	}
-    	return ret;
+    	
+    	throw new NoSuchElementException("Catalog Error: Name " + name + " was not found in catalog.");
     }
 
     /**
@@ -113,20 +118,11 @@ public class Catalog {
     }
 
     public Iterator<Integer> tableIdIterator() {
-       return ids.values().iterator();
-    	
+       return ids.keySet().iterator();
     }
 
     public String getTableName(int id) {
-        Iterator<String> it = ids.keySet().iterator();
-        
-        while(it.hasNext()) {
-        	String key = it.next();
-        	if(ids.get(key)==id) {
-        		return key;
-        	}
-        }
-        return null;
+        return ids.get(id);
     }
 
     /**

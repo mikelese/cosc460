@@ -59,7 +59,13 @@ public class IntHistogram {
     	if (v>max || v<min) {
     		throw new RuntimeException("Illegal value provided. Value must be within the specified range.");
     	}
+    	
+    	try {
     	buckets[getBucket(v)]++;
+    	} catch (ArrayIndexOutOfBoundsException e) {
+    		System.out.println("v="+v+" bucket=" + getBucket(v) + " size="+buckets.length);
+    		return;
+    	}
     }
     
     private int getBucket(int v) {
@@ -67,7 +73,12 @@ public class IntHistogram {
     		//put max value into last bucket
     		return buckets.length-1;
     	} 
-    	return (int) ((double)(v-min)/(double)bucketsize(0));
+    	int ret = (int) ((double)(v-min)/(double)bucketsize(0));
+    	if(ret>=buckets.length) {
+    		//TODO COME BACK TO THIS
+    		ret = buckets.length-1;
+    	}
+    	return ret;
     }
 
     /**

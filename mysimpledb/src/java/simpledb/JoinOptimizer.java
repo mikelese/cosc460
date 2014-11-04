@@ -5,6 +5,10 @@ import java.util.*;
 import javax.swing.*;
 import javax.swing.tree.*;
 
+import com.sun.org.apache.xml.internal.security.keys.content.PGPData;
+
+import simpledb.Predicate.Op;
+
 /**
  * The JoinOptimizer class is responsible for ordering a series of joins
  * optimally, and for selecting the best instantiation of a join for a given
@@ -110,11 +114,7 @@ public class JoinOptimizer {
             // You do not need to implement proper support for these for Lab 4.
             return card1 + cost1 + cost2;
         } else {
-            // Insert your code here.
-            // HINT: You may need to use the variable "j" if you implemented
-            // a join algorithm that's more complicated than a basic
-            // nested-loops join.
-            return -1.0;
+            return cost1+(double)card1*cost2;
         }
     }
 
@@ -152,9 +152,40 @@ public class JoinOptimizer {
                                                    String field2PureName, int card1, int card2, boolean t1pkey,
                                                    boolean t2pkey, Map<String, TableStats> stats,
                                                    Map<String, Integer> tableAliasToId) {
-        int card = 1;
-        // some code goes here
-        return card <= 0 ? 1 : card;
+    	
+        TupleDesc td1 = Database.getCatalog().getTupleDesc(tableAliasToId.get(table1Alias));
+        TupleDesc td2 = Database.getCatalog().getTupleDesc(tableAliasToId.get(table2Alias));
+        
+        int f1index = td1.fieldNameToIndex(field1PureName);
+        int f2index = td2.fieldNameToIndex(field2PureName);
+        
+        switch(joinOp) {
+        case EQUALS:
+        	System.out.println(Database.getCatalog().getTableName(tableAliasToId.get(table1Alias)));
+        	int initial = (int)Math.round((double)(card1*card2) / 
+        			Math.max(
+        					stats.get(Database.getCatalog().getTableName(tableAliasToId.get(table1Alias)))
+        						.numDistinctValues(f1index), 
+        					stats.get(Database.getCatalog().getTableName(tableAliasToId.get(table2Alias)))
+        						.numDistinctValues(f2index)
+        			));
+        	 
+        	if(t1pkey && initial > card1) {
+        		initial = card1;
+        	}
+        	if(t2pkey && initial > card2) {
+        		initial = card2;
+        	}
+        	if(initial >= 1 || initial==0) {
+        		return initial;
+        	} else {
+        		return 1;
+        	}
+        	
+        default:
+			return (int)Math.round(((double)(card1*card2))*.30); //Arbitrary proportion from lab instructions
+			//TODO ensure 1
+        }
     }
 
     /**
@@ -208,13 +239,59 @@ public class JoinOptimizer {
             HashMap<String, TableStats> stats,
             HashMap<String, Double> filterSelectivities, boolean explain)
             throws ParsingException {
-
-        // See the Lab 4 writeup for some hints as to how this function
-        // should work.
-
-        // some code goes here
-        //Replace the following
-        return joins;
+    	
+//    			1.  j = set of join nodes
+//    			2.  for (i in 1...|j|):  // First find best plan for single join, then for two joins, etc. 
+//    			3.      for s in {all length i subsets of j} // Looking at a concrete subset of joins
+//    			4.          if (i == 1)
+//    			5.              // s consists of a single join node
+//    			6.              plan = best way to perform join in s
+//    			7.              optjoin(s) = plan
+//    			8.          else
+//    			9.              // s contains multiple join nodes
+//    			10.             bestPlan = {}                // Find the best plan for this concrete subset 
+//    			11.             for s' in {all length i-1 subsets of s} 
+//    			12.                  lastJoin = s - s'       // There is exactly one join node in s but not in s'
+//    			13.                  subplan = optjoin(s')   // Look-up in the cache the best query plan for s'
+//    			14.                  plan = best way to join lastJoin to subplan  // Now find the best plan to 
+//    			15.                                                               // extend s' by one join to get s
+//    			16.                  if (cost(plan) < cost(bestPlan))
+//    			17.                      bestPlan = plan     // Update the best plan for computing s
+//    			18.             optjoin(s) = bestPlan
+//    			19.  return optjoin(j)
+    	PlanCache pc = new PlanCache();
+    	
+    	for(int size=1; size<=joins.size();size++) {
+    		Set<Set<LogicalJoinNode>> s = enumerateSubsets(joins, size);
+    		Iterator<Set<LogicalJoinNode>> iter = s.iterator();
+    		while(iter.hasNext()) {
+    			Set<LogicalJoinNode> temp = iter.next();
+				CostCard best = new CostCard();
+				best.cost = Double.MAX_VALUE; //This seems like a haphazard way of doing this
+				for(LogicalJoinNode node : joins) {
+					CostCard cc = computeCostAndCardOfSubplan(stats, filterSelectivities, node, temp, best.cost, pc);
+					if(cc != null && cc.cost < best.cost) {
+						best = cc;
+						pc.addPlan(temp, cc.cost, cc.card, cc.plan);
+					}
+				}
+       			
+    		}
+    	}
+    	
+    	//Turn vector into set?
+    	HashSet<LogicalJoinNode> fin = new HashSet<LogicalJoinNode>(); 
+    	for(LogicalJoinNode jn: joins) {
+    		fin.add(jn);
+    	}
+    	
+    	Vector<LogicalJoinNode> ret = pc.getOrder(fin);
+    	
+    	if(explain) {
+    		printJoins(ret, pc, stats, filterSelectivities);
+    	}
+    	
+        return ret;
     }
 
     // ===================== Private Methods =================================
