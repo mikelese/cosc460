@@ -94,7 +94,7 @@ public class LockingTest2 extends TestUtil.CreateHeapFile {
 
         TestUtil.LockGrabber t = new TestUtil.LockGrabber(tid, pid, perm);
         t.start();
-
+        
         // if we don't have the lock after TIMEOUT, we assume blocking.
         Thread.sleep(TIMEOUT);
         assertEquals(expected, t.acquired());

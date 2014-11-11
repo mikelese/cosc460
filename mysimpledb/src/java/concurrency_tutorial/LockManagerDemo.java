@@ -12,7 +12,7 @@ public class LockManagerDemo {
      */
     public static void main(String args[]) throws InterruptedException {
         final Counter counter = new Counter();
-        int numThreads = 20;
+        int numThreads = 2000;
         final int numAdds = 10;
         for (int i = 0; i < numThreads; i++) {
             new Thread(new Incrementer(counter, numAdds, i + 1)).start();
@@ -75,27 +75,36 @@ public class LockManagerDemo {
     static class LockManager {
         private boolean inUse = false;
 
-        public void acquireLock() {
-            boolean waiting = true;
-            while (waiting) {
-                synchronized (this) {
-                    // check if lock is available
-                    if (!inUse) {
-                        // it's not in use, so we can take it!
-                        inUse = true;
-                        waiting = false;
-                    }
-                }
-                if (waiting) {
-                    try {
-                        Thread.sleep(1);
-                    } catch (InterruptedException ignored) { }
-                }
-            }
+        public synchronized void acquireLock() {
+//            boolean waiting = true;
+//            while (waiting) {
+//                synchronized (this) {
+//                    // check if lock is available
+//                    if (!inUse) {
+//                        // it's not in use, so we can take it!
+//                        inUse = true;
+//                        waiting = false;
+//                    }
+//                }
+//                if (waiting) {
+//                    try {
+//                        Thread.sleep(1);
+//                    } catch (InterruptedException ignored) { }
+//                }
+//            }
+        	while(inUse) {
+        		try {
+        			wait();
+        		} catch (InterruptedException e) {
+        			e.printStackTrace();
+        		}
+        	}
+        	inUse = true;
         }
 
         public synchronized void releaseLock() {
             inUse = false;
+            notifyAll();
         }
     }
 }

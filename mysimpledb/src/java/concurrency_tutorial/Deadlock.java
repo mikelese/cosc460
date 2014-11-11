@@ -19,7 +19,7 @@ public class Deadlock {
                 this.name, bower.getName());
             bower.bowBack(this);
         }
-        public synchronized void bowBack(Friend bower) {
+        public /*synchronized*/ void bowBack(Friend bower) {
             System.out.format("%s: %s"
                 + " has bowed back to me!%n",
                 this.name, bower.getName());

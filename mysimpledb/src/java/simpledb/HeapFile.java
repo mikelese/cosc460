@@ -126,7 +126,7 @@ public class HeapFile implements DbFile {
     	
     	for (int i=0;i<this.numPages();i++) {
     		pg = (HeapPage)Database.getBufferPool().getPage(tid, new HeapPageId(this.getId(),i), null);
-    		System.out.println("NumSlots in page "+ i +": " + pg.getNumEmptySlots());
+    		//System.out.println("NumSlots in page "+ i +": " + pg.getNumEmptySlots());
     		if(pg.getNumEmptySlots() > 0) {
     			isAdded = true;
     			break;

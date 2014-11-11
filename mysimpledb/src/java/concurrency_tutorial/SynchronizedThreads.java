@@ -11,8 +11,8 @@ public class SynchronizedThreads {
      */
     public static void main(String args[]) throws InterruptedException {
         Counter counter = new Counter();
-        int numThreads = 10;
-        int numAdds = 15;
+        int numThreads = 1000;
+        int numAdds = 150;
         for (int i = 0; i < numThreads; i++) {
             new Thread(new Incrementer(counter, numAdds, i+1)).start();
         }
@@ -58,7 +58,7 @@ public class SynchronizedThreads {
          * Increase the counter by one.
          * @param name the name of the incrementer (i.e., whoever called this method)
          */
-        public void increment(String name) {
+        public /*synchronized*/ void increment(String name) {
             int currCount = count;  // read
             // introduce a delay between read and write to "encourage" race conditions
             System.out.println("Shared counter incremented by " + name + ".");

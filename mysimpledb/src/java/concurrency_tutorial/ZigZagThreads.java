@@ -45,16 +45,24 @@ public class ZigZagThreads {
         private boolean needZig = true;
 
         private synchronized boolean isLockFree(boolean isZigger) {
-            // some code goes here
-            return true;
+        	if(inUse) {
+        		return false;
+        	}
+        	return isZigger == needZig;
         }
 
         public void acquireLock(boolean isZigger) {
-            // some code goes here
+            	while(!isLockFree(isZigger)) {
+            		//spin
+            	}
+            	inUse = true;
         }
 
         public synchronized void releaseLock() {
-            // some code goes here
+        	if(inUse) {
+        		inUse = false;
+        		needZig = !needZig;
+        	}
         }
     }}
 

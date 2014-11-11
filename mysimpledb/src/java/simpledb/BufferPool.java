@@ -2,7 +2,46 @@ package simpledb;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedList;
+
+//TODO Read locks (perhaps Lock object to replace PageId, tid pairs
+
+class LockManager {
+	private HashMap<PageId,TransactionId> locks = new HashMap<PageId,TransactionId>();
+	
+    public synchronized void acquireLock(PageId pid,TransactionId tid) {
+    	if(locks.containsKey(pid) && locks.get(pid).equals(tid)) {
+    		return;
+    	}
+    	while(locks.containsKey(pid)) {
+    		try {
+//    			System.out.println("waiting for p" + pid.pageNumber() + " - " + tid);
+    			wait();
+    		} catch (InterruptedException e) {
+    			e.printStackTrace();
+    		}
+    	}
+    	locks.put(pid, tid);
+//		System.out.println("acquired lock on p"+  pid.pageNumber() +" - "+tid);
+    }
+
+    public synchronized void releaseLock(PageId pid,TransactionId tid) {
+        if(locks.get(pid)!=null && locks.get(pid).equals(tid)) {
+        	locks.remove(pid);
+//        	System.out.println("removing lock on p"+  pid.pageNumber()+ " - " +tid);
+        	notifyAll();
+        }
+    }
+
+	public boolean checkLock(TransactionId tid, PageId p) {
+		if(locks.get(p)==null) {
+			return false;
+		}
+		return locks.get(p).equals(tid);
+	}    
+}
+
 
 /**
  * BufferPool manages the reading and writing of pages into memory from
@@ -32,6 +71,7 @@ public class BufferPool {
 
     private LinkedList<Page> cache;
     private int maxSize;
+    private LockManager manager = new LockManager();
     
     /**
      * Creates a BufferPool that caches up to numPages pages.
@@ -74,7 +114,7 @@ public class BufferPool {
     	 * the most recently used page is appended to the rear.
     	 * This is clearly subject to change.
     	 */
-    	
+    	manager.acquireLock(pid,tid);
     	Page pg = find(pid);
     	if (pg==null) {
         	int tableid = pid.getTableId();        	
@@ -84,7 +124,7 @@ public class BufferPool {
         		evictPage();
         	}
         	cache.push(pg);
-        } 	
+        }
     	return pg;
     }
     
@@ -109,8 +149,7 @@ public class BufferPool {
      * @param pid the ID of the page to unlock
      */
     public void releasePage(TransactionId tid, PageId pid) {
-        // some code goes here
-        // not necessary for lab1|lab2|lab3|lab4                                                         // cosc460
+    	manager.releaseLock(pid,tid);
     }
 
     /**
@@ -119,17 +158,14 @@ public class BufferPool {
      * @param tid the ID of the transaction requesting the unlock
      */
     public void transactionComplete(TransactionId tid) throws IOException {
-        // some code goes here
-        // not necessary for lab1|lab2|lab3|lab4                                                         // cosc460
+    	
     }
 
     /**
      * Return true if the specified transaction has a lock on the specified page
      */
     public boolean holdsLock(TransactionId tid, PageId p) {
-        // some code goes here
-        // not necessary for lab1|lab2|lab3|lab4                                                         // cosc460
-        return false;
+        return manager.checkLock(tid,p); 
     }
 
     /**
@@ -233,6 +269,7 @@ public class BufferPool {
     	for(Page pg: cache)   { // cosc460
     		if(pg.isDirty()!=null) { //TODO Check efficiency
     			flushPage(pg.getId());
+    			manager.releaseLock(pg.getId(), tid);
     		}
     	}
     }

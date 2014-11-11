@@ -1,18 +1,24 @@
 Your name(s): 
 
 1. Explain how you modified SynchronizedThreads in exercise 1.
+	I made the increment method in the Counter class synchronized.
 
 2. Briefly describe (1-2 sentences) an alternate implementation for exercise 1.
+	The other way of doing this would be to ensure that the individual call to Counter's increment function is only accessed by one thread at a time.
 
 3. Exercise 2: Explain the deadlock that happens in Deadlock in terms of locks and threads waiting on locks. The two threads in this case are alphonse and gaston. 
 
 a) What objects are being locked? 
-
+	The methods themselves, and relevant parameters, etc. are locked. 
 b) Who has what locks? 
-
+	The bower has a lock on the bow method, and the bowee (the one who bows back) has a lock on the bowback method.
+	
 c) How does deadlock occur?
+	Deadlock occurs because the call to bowBack cannot execute, because it too is synchronized, making its execution dependent on the current method releasing its lock.
+	If bowBack is no longer synchronized, the deadlock disappears.
 
 4. Return to exercise 1, can deadlock occur here?  Explain why or why not.
+Depending on the implementation, it can. The way I wrote it, I am fairly certain deadlock cannot occur, but if synchronization were to be implemented on the Incrementer-level, it could be possible.
 
 5. Explain why acquireLock uses a synchronized statement inside the body of the method. In other words, why not just make the acquireLock method synchronized, just like releaseLock? Will this work? Why or why not?
-	
+	This causes issues, as the Thread.sleep portion of the code is not critical, in fact, it is the opposite, all threads must reach this segment, regardless of lock status. A synchronized method, rather than statement, would make this portion of the code unreachable for non-locked threads.
