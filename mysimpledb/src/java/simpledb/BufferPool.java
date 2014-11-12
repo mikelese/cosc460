@@ -39,21 +39,15 @@ class LockManager {
     	}
     	if(locks.containsKey(pid)) {
     		if(locks.get(pid).perm.equals(Permissions.READ_ONLY) 
-    				/*TODO provisional*/ && locks.get(pid).waitingRequests.size()<1
+    				&& locks.get(pid).waitingRequests.size()<1
     				&& locks.get(pid).perm.equals(perm)) {
     			
     			locks.get(pid).tids.add(tid);
     		} 	
     		else {
     			locks.get(pid).waitingRequests.add(new Lock(tid,perm));
-//    			while(locks.containsKey(pid)) {
-//    				try {
-//    					wait();
-//    				} catch (InterruptedException e) {
-//    					e.printStackTrace();
-//    				}
-//    			}
-    			while (!locks.get(pid).tids.contains(tid)) { /*spin*/ }
+    			
+    			while (!(locks.get(pid).tids.contains(tid) /*&& locks.get(pid).perm.equals(perm)*/ )) { /*spin*/ }
     			
     			if (locks.get(pid).perm.equals(Permissions.READ_ONLY)) {
     				if(locks.get(pid).waitingRequests.peek().perm.equals(Permissions.READ_ONLY)) {
@@ -68,14 +62,6 @@ class LockManager {
     }
 
     public synchronized void releaseLock(PageId pid,TransactionId tid) {
-//        if(locks.get(pid)!=null && locks.get(pid).equals(tid)) {
-//        	if(locks.get(pid).tids.size()==1) {
-//        		locks.remove(pid);
-//        		notifyAll();
-//        	} else {
-//        		locks.get(pid).tids.remove(tid);
-//        	}
-//        }
     	if(locks.containsKey(pid) && locks.get(pid).tids.contains(tid)) {
     		locks.get(pid).tids.remove(tid);
     	}
