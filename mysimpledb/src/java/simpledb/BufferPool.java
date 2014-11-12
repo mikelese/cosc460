@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Queue;
 
@@ -335,14 +336,15 @@ public class BufferPool {
      * Flushes the page to disk to ensure dirty pages are updated on disk.
      */
     private synchronized void evictPage() throws DbException {
-        Page pg = cache.removeLast();
-        try {
-        	if(pg.isDirty()!=null) {
-        		flushPage(pg.getId());
+        Iterator<Page> descend = cache.descendingIterator();
+        
+        while(descend.hasNext()) {
+        	Page pg = descend.next();
+        	if(pg.isDirty()==null) {
+        		cache.remove(pg);
+        		return;
         	}
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+        }
+        throw new DbException("BufferPool Exception: All BufferPool pages are dirty.");
     }
-
 }
