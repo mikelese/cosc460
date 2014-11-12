@@ -3,42 +3,98 @@ package simpledb;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
+import java.util.Queue;
 
-//TODO Read locks (perhaps Lock object to replace PageId, tid pairs
+class Lock {
+	TransactionId tid;
+	Permissions perm;
+	
+	Lock(TransactionId tid, Permissions perm) {
+		this.tid = tid;
+		this.perm = perm;
+	}
+}
+
+class LockEntry {
+	HashSet<TransactionId> tids = new HashSet<TransactionId>();
+	Permissions perm;
+	Queue<Lock> waitingRequests = new LinkedList<Lock>();
+	
+	LockEntry(TransactionId tid, Permissions perm) {
+		tids.add(tid);
+		this.perm = perm;
+	}
+}
 
 class LockManager {
-	private HashMap<PageId,TransactionId> locks = new HashMap<PageId,TransactionId>();
+	private HashMap<PageId,LockEntry> locks = new HashMap<PageId,LockEntry>();
 	
-    public synchronized void acquireLock(PageId pid,TransactionId tid) {
-    	if(locks.containsKey(pid) && locks.get(pid).equals(tid)) {
+	
+    public synchronized void acquireLock(PageId pid,TransactionId tid,Permissions perm) {
+    	if(locks.containsKey(pid) && locks.get(pid).tids.contains(tid)) {
     		return;
     	}
-    	while(locks.containsKey(pid)) {
-    		try {
-//    			System.out.println("waiting for p" + pid.pageNumber() + " - " + tid);
-    			wait();
-    		} catch (InterruptedException e) {
-    			e.printStackTrace();
+    	if(locks.containsKey(pid)) {
+    		if(locks.get(pid).perm.equals(Permissions.READ_ONLY) 
+    				/*TODO provisional*/ && locks.get(pid).waitingRequests.size()<1
+    				&& locks.get(pid).perm.equals(perm)) {
+    			
+    			locks.get(pid).tids.add(tid);
+    		} 	
+    		else {
+    			locks.get(pid).waitingRequests.add(new Lock(tid,perm));
+//    			while(locks.containsKey(pid)) {
+//    				try {
+//    					wait();
+//    				} catch (InterruptedException e) {
+//    					e.printStackTrace();
+//    				}
+//    			}
+    			while (!locks.get(pid).tids.contains(tid)) { /*spin*/ }
+    			
+    			if (locks.get(pid).perm.equals(Permissions.READ_ONLY)) {
+    				if(locks.get(pid).waitingRequests.peek().perm.equals(Permissions.READ_ONLY)) {
+    					Lock next = locks.get(pid).waitingRequests.remove();
+    					locks.get(pid).tids.add(next.tid);
+    				}
+    			}
     		}
+    	} else {
+    		locks.put(pid, new LockEntry(tid,perm));
     	}
-    	locks.put(pid, tid);
-//		System.out.println("acquired lock on p"+  pid.pageNumber() +" - "+tid);
     }
 
     public synchronized void releaseLock(PageId pid,TransactionId tid) {
-        if(locks.get(pid)!=null && locks.get(pid).equals(tid)) {
-        	locks.remove(pid);
-//        	System.out.println("removing lock on p"+  pid.pageNumber()+ " - " +tid);
-        	notifyAll();
-        }
+//        if(locks.get(pid)!=null && locks.get(pid).equals(tid)) {
+//        	if(locks.get(pid).tids.size()==1) {
+//        		locks.remove(pid);
+//        		notifyAll();
+//        	} else {
+//        		locks.get(pid).tids.remove(tid);
+//        	}
+//        }
+    	if(locks.containsKey(pid) && locks.get(pid).tids.contains(tid)) {
+    		locks.get(pid).tids.remove(tid);
+    	}
+    	if(locks.get(pid).tids.size()<1) {
+    		if(locks.get(pid).waitingRequests.size()<1) {
+    			locks.remove(pid);
+    		}
+    		else {
+    			Lock l = locks.get(pid).waitingRequests.remove();
+    			locks.get(pid).tids.add(l.tid);
+    			locks.get(pid).perm = l.perm; 
+    		}
+    	}
     }
 
 	public boolean checkLock(TransactionId tid, PageId p) {
 		if(locks.get(p)==null) {
 			return false;
 		}
-		return locks.get(p).equals(tid);
+		return locks.get(p).tids.contains(tid);
 	}    
 }
 
@@ -114,7 +170,7 @@ public class BufferPool {
     	 * the most recently used page is appended to the rear.
     	 * This is clearly subject to change.
     	 */
-    	manager.acquireLock(pid,tid);
+    	manager.acquireLock(pid,tid,perm);
     	Page pg = find(pid);
     	if (pg==null) {
         	int tableid = pid.getTableId();        	
@@ -133,7 +189,7 @@ public class BufferPool {
     		if (pg.getId().equals(pid)) {
     			cache.remove(pg);
     			cache.push(pg); //Puts most recently accessed page at the top?
-    			return pg;		//Temporary LRU policy //TODO Adjust
+    			return pg;		//LRU policy
     		}
     	}
     	return null;
@@ -202,7 +258,8 @@ public class BufferPool {
         ArrayList<Page> arr = file.insertTuple(tid, t);
         
         for (Page pg: arr) {
-        	pg = this.getPage(tid, pg.getId(), null);
+        	//TODO, this may be problematic
+        	pg = this.getPage(tid, pg.getId(), Permissions.READ_WRITE);
         	pg.markDirty(true, tid);
         }
     }
@@ -222,10 +279,9 @@ public class BufferPool {
     public void deleteTuple(TransactionId tid, Tuple t)
             throws DbException, IOException, TransactionAbortedException {
     	PageId pid = t.getRecordId().getPageId();
-    	HeapPage pg = (HeapPage)Database.getBufferPool().getPage(tid, pid, null);
+    	HeapPage pg = (HeapPage)Database.getBufferPool().getPage(tid, pid, Permissions.READ_WRITE);
     	pg.deleteTuple(t);
-    	
-    	Database.getBufferPool().getPage(tid, pid, null).markDirty(true, tid);
+    	pg.markDirty(true, tid);
     }
 
     /**
@@ -285,7 +341,6 @@ public class BufferPool {
         		flushPage(pg.getId());
         	}
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
     }
