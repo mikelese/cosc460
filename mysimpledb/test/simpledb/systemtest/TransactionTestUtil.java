@@ -31,7 +31,10 @@ public class TransactionTestUtil {
             throws DbException, TransactionAbortedException {
         SeqScan ss = new SeqScan(t.getId(), f.getId(), "");
         boolean found = false;
+
         ss.open();
+    	//System.out.println("there should be two of these");
+
         while (ss.hasNext()) {
             Tuple v = ss.next();
             int v0 = ((IntField) v.getField(0)).getValue();
@@ -39,9 +42,14 @@ public class TransactionTestUtil {
             if (v0 == -42 && v1 == -43) {
                 assertFalse(found);
                 found = true;
+                //System.out.println(v.getRecordId().getPageId());
             }
+        	//System.out.println("in seqscan");
+
         }
+
         ss.close();
+
         return found;
     }
 }

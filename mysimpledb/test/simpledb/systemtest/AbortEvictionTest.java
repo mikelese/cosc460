@@ -30,14 +30,18 @@ public class AbortEvictionTest extends SimpleDbTestBase {
         // The tuple must exist in the table
         boolean found = TransactionTestUtil.findMagicTuple(f, t);
         assertTrue(found);
+                
         // ABORT
         t.transactionComplete(true);
-
+        
         // A second transaction must not find the tuple
         t = new Transaction();
         t.start();
+
         found = TransactionTestUtil.findMagicTuple(f, t);
+
         assertFalse(found);
+        
         t.commit();
     }
 

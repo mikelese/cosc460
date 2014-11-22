@@ -125,8 +125,7 @@ public class HeapFile implements DbFile {
     	boolean isAdded = false;
     	
     	for (int i=0;i<this.numPages();i++) {
-    		pg = (HeapPage)Database.getBufferPool().getPage(tid, new HeapPageId(this.getId(),i), Permissions.READ_WRITE);
-    		//System.out.println("NumSlots in page "+ i +": " + pg.getNumEmptySlots());
+    		pg = (HeapPage)Database.getBufferPool().getPage(tid, new HeapPageId(this.getId(),i), Permissions.READ_ONLY);
     		if(pg.getNumEmptySlots() > 0) {
     			isAdded = true;
     			break;
@@ -135,13 +134,14 @@ public class HeapFile implements DbFile {
     	
     	//New Page needed
     	if(!isAdded) {
-    		//System.out.println("adding new page");
     		pg = new HeapPage(new HeapPageId(this.getId(),numPages()),HeapPage.createEmptyPageData());
     	}
     	
 		pg.insertTuple(t);
 		this.writePage(pg);
-		
+		//pg.markDirty(true, tid);
+		//System.out.println("Marked " + pg + " dirty");
+
     	ArrayList<Page> ret = new ArrayList<Page>();
     	ret.add(pg);
     	return ret;
@@ -177,7 +177,10 @@ public class HeapFile implements DbFile {
 			@Override
 			public void open() throws DbException, TransactionAbortedException {
 				if(pageNum == -1) {
+			    	//System.out.println("opening seqscan");
+
 					curPage = (HeapPage)Database.getBufferPool().getPage(tid , new HeapPageId(heapfile.getId(),0), Permissions.READ_ONLY);
+					//System.out.println("acquired lock");
 					tuples = curPage.iterator();
 					pageNum=0;
 				}

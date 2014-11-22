@@ -6,7 +6,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
-import java.util.Queue;
 
 class Lock {
 	TransactionId tid;
@@ -16,16 +15,69 @@ class Lock {
 		this.tid = tid;
 		this.perm = perm;
 	}
+	
+	public boolean equals(Object o) {
+		Lock other;
+		if (o instanceof Lock) {
+			other = (Lock)o;
+		} else {
+			return false;
+		}
+		return this.tid.equals(other.tid) && this.perm.equals(other.perm);		
+	}
+	
+	public String toString() {
+		String ret = "";
+		ret+="Tid: " + tid;
+		ret+=" Perm: " + perm;
+		return ret;
+	}
 }
 
 class LockEntry {
-	HashSet<TransactionId> tids = new HashSet<TransactionId>();
-	Permissions perm;
-	Queue<Lock> waitingRequests = new LinkedList<Lock>();
+	HashSet<Lock> active = new HashSet<Lock>();
+	LinkedList<Lock> waitingRequests = new LinkedList<Lock>();
+	boolean isReadOnly;
 	
 	LockEntry(TransactionId tid, Permissions perm) {
-		tids.add(tid);
-		this.perm = perm;
+		set(tid,perm);
+	}
+	
+	void set(TransactionId tid, Permissions perm) {
+		if(active.size()==0) {
+			active.add(new Lock(tid,perm));
+			isReadOnly = perm.equals(Permissions.READ_ONLY);
+		}
+	}
+	
+	void set(Lock l) {
+		set(l.tid,l.perm);
+	}
+	
+	boolean add(TransactionId tid, Permissions perm) {
+		if(isReadOnly && perm.equals(Permissions.READ_ONLY)) {
+			active.add(new Lock(tid,perm));
+			return true;
+		}
+		return false;
+	}
+	
+	boolean containsTid(TransactionId tid) {
+		for(Lock l : active) {
+			if(l.tid.equals(tid)) {
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	public String toString() {
+		String ret = "";
+		ret += "Active: ";
+		ret += active + "\n";
+		ret += "Queue: ";
+		ret += waitingRequests;
+		return ret;
 	}
 }
 
@@ -34,45 +86,99 @@ class LockManager {
 	
 	
     public synchronized void acquireLock(PageId pid,TransactionId tid,Permissions perm) {
-    	if(locks.containsKey(pid) && locks.get(pid).tids.contains(tid)) {
+    	LockEntry lockentry = locks.get(pid);
+    	//No lock has been taken out on this page.
+    	if(lockentry==null) {
+    		//System.out.println("New entry");
+    		locks.put(pid,new LockEntry(tid,perm));    		
     		return;
     	}
-    	if(locks.containsKey(pid)) {
-    		if(locks.get(pid).perm.equals(Permissions.READ_ONLY) 
-    				&& locks.get(pid).waitingRequests.size()<1
-    				&& locks.get(pid).perm.equals(perm)) {
-    			
-    			locks.get(pid).tids.add(tid);
-    		} 	
-    		else {
-    			locks.get(pid).waitingRequests.add(new Lock(tid,perm));
-    			
-    			while (!(locks.get(pid).tids.contains(tid) /*&& locks.get(pid).perm.equals(perm)*/ )) { /*spin*/ }
-    			
-    			if (locks.get(pid).perm.equals(Permissions.READ_ONLY)) {
-    				if(locks.get(pid).waitingRequests.peek().perm.equals(Permissions.READ_ONLY)) {
-    					Lock next = locks.get(pid).waitingRequests.remove();
-    					locks.get(pid).tids.add(next.tid);
-    				}
-    			}
-    		}
-    	} else {
-    		locks.put(pid, new LockEntry(tid,perm));
+    	
+    	Lock lock = new Lock(tid, perm);
+    	
+    	//Lock is already held (probably should not happen)
+    	if(lockentry.active.contains(lock)) {
+    		return; //Probably unnecessary
     	}
+    	
+    	//LockEntry is initialized, but not in use, add new lock to active set
+    	if(lockentry.active.size() == 0) {
+    		//System.out.println("active is empty, add");
+    		lockentry.active.add(lock);
+    	}
+    	
+    	//Read lock request, r/w lock already held 
+    	if(lockentry.containsTid(tid) && perm.equals(Permissions.READ_ONLY) && !lockentry.isReadOnly) {
+    		return;
+    	}
+    	
+    	//Lock is read only, add read only lock request to active set
+    	if(lockentry.isReadOnly && perm.equals(Permissions.READ_ONLY)) {
+    		lockentry.active.add(lock);
+    	}
+    	
+    	//Upgrade: Lock is read-only, acquisition request is r/w
+    	if(perm.equals(Permissions.READ_WRITE) && lockentry.containsTid(tid)) {
+    		//System.out.println("upgrade");
+    		if(lockentry.active.size()==1) {
+    			for(Lock l: lockentry.active) {
+    				l.perm = Permissions.READ_WRITE;
+    				return;
+    			}
+    		} else {
+    			lockentry.waitingRequests.push(lock);
+    		}		
+    	}
+    	
+    	//Normal case: if lock is not in waiting queue, add
+    	if(!lockentry.waitingRequests.contains(lock)) {
+    		lockentry.waitingRequests.add(lock);
+    	}
+    	
+    	//System.out.println(toString());
+    	
+    	//Spin wait until in the active set
+    	while(!lockentry.active.contains(lock)) {
+    		//spin
+    	}  	
     }
 
     public synchronized void releaseLock(PageId pid,TransactionId tid) {
-    	if(locks.containsKey(pid) && locks.get(pid).tids.contains(tid)) {
-    		locks.get(pid).tids.remove(tid);
-    	}
-    	if(locks.get(pid).tids.size()<1) {
-    		if(locks.get(pid).waitingRequests.size()<1) {
-    			locks.remove(pid);
+    	LockEntry lockentry = locks.get(pid);
+    	Lock remove = null;
+    	
+    	//Remove locks in active set, avoiding concurrent modification
+    	for(Lock l: lockentry.active) {
+    		if (l.tid.equals(tid)) {
+    			remove = l;
     		}
-    		else {
-    			Lock l = locks.get(pid).waitingRequests.remove();
-    			locks.get(pid).tids.add(l.tid);
-    			locks.get(pid).perm = l.perm; 
+    	}
+    	if(remove!=null) {
+    		lockentry.active.remove(remove);
+    	}
+    	
+    	//System.out.println("item removed, queue is now: " + lockentry.active);
+		
+    	//If there are no other transactions using this lock, add new locks from queue.
+    	if(lockentry.active.size()==0) {
+    		//If there is an item on queue, add it
+    		if(lockentry.waitingRequests.size() >0) {
+	    		Lock l = lockentry.waitingRequests.pop();
+	    		lockentry.set(l);
+	    		//System.out.println("Moving lock with " + l.tid +  "--" + l.perm);
+	    		
+	    		// If this item is read only, and there are items on queue
+	    		if(lockentry.isReadOnly && lockentry.waitingRequests.size() >0) {
+	    			Lock read = lockentry.waitingRequests.peek();
+	    			
+	    			//Add items to active set from queue until requests are r/w or there are no requests
+	    			//Only pop prior to add
+	    			while(read.perm.equals(Permissions.READ_ONLY) && read!=null) {
+	    				lockentry.waitingRequests.pop();
+	    				lockentry.active.add(read);
+	    				read = lockentry.waitingRequests.peek();
+	    			}
+	    		}
     		}
     	}
     }
@@ -81,8 +187,34 @@ class LockManager {
 		if(locks.get(p)==null) {
 			return false;
 		}
-		return locks.get(p).tids.contains(tid);
-	}    
+		return locks.get(p).containsTid(tid);
+	}
+	
+	//Removes all Locks that have tid
+	public synchronized void abort(TransactionId tid) {
+		//System.out.println("aborting");
+		Iterator<PageId> it = locks.keySet().iterator();
+		while(it.hasNext()) {
+			PageId pid = it.next();
+			LockEntry le = locks.get(pid);
+			if(le.containsTid(tid)) {
+				releaseLock(pid,tid);
+			}
+			//System.out.println(le.active);
+			HashSet<Lock> removeLocks = new HashSet<Lock>();
+			for(Lock l : le.waitingRequests) {
+				if(l.tid.equals(tid)) {
+					removeLocks.add(l);
+				}
+			}
+			le.waitingRequests.removeAll(removeLocks);
+			//System.out.println(le.waitingRequests);
+		}
+	}
+	
+	public String toString() {
+		return locks.toString();
+	}
 }
 
 
@@ -158,15 +290,15 @@ public class BufferPool {
     	 * This is clearly subject to change.
     	 */
     	manager.acquireLock(pid,tid,perm);
+		//System.out.println("Locked page");
     	Page pg = find(pid);
     	if (pg==null) {
         	int tableid = pid.getTableId();        	
         	pg = Database.getCatalog().getDatabaseFile(tableid).readPage(pid);
-        	
+        	cache.push(pg);
         	if(cache.size()> maxSize){
         		evictPage();
         	}
-        	cache.push(pg);
         }
     	return pg;
     }
@@ -201,7 +333,7 @@ public class BufferPool {
      * @param tid the ID of the transaction requesting the unlock
      */
     public void transactionComplete(TransactionId tid) throws IOException {
-    	
+    	transactionComplete(tid,true);
     }
 
     /**
@@ -220,8 +352,42 @@ public class BufferPool {
      */
     public void transactionComplete(TransactionId tid, boolean commit)
             throws IOException {
-        // some code goes here
-        // not necessary for lab1|lab2|lab3|lab4                                                         // cosc460
+    	//Transaction commits successfully, flush pages to disk.
+    	if(commit) {
+    		flushPages(tid);
+    		//System.out.println(manager);
+    		manager.abort(tid);
+    		
+    	//Transaction failed to commit,	remove dirty pages.
+    	} else {
+    		HashSet<Page> toRemove = new HashSet<Page>();
+    		for(Page p: cache) {
+    			//System.out.println(p.isDirty());
+    			if(p.isDirty()==null) {
+    				//System.out.println("NOT DIRTY" + cache.size() +" " + this.maxSize);
+    				continue;
+    			}
+    			
+    			if(p.isDirty().equals(tid)) {
+    				//cache.remove(p);
+    				//System.out.println(cache);
+    				//System.out.println("Page " + p + "(pid: " +p.getId()+ ") is dirty");
+    				//HeapFile file = (HeapFile)Database.getCatalog().getDatabaseFile(p.getId().getTableId());
+    				//cache.add(file.readPage(p.getId()));
+    				toRemove.add(p);
+    				//releasePage(tid,p.getId());
+    			}
+    		}
+    		for(Page p : toRemove) {
+    			cache.remove(p);
+				System.out.println("Page " + p + "(pid: " +p.getId()+ ") is dirty");
+				HeapFile file = (HeapFile)Database.getCatalog().getDatabaseFile(p.getId().getTableId());
+				cache.add(file.readPage(p.getId()));
+				releasePage(tid,p.getId());
+    		}
+    		manager.abort(tid);
+    		//System.out.println(manager);
+    	}
     }
 
     /**
@@ -244,11 +410,12 @@ public class BufferPool {
         DbFile file = Database.getCatalog().getDatabaseFile(tableId);
         ArrayList<Page> arr = file.insertTuple(tid, t);
         
-        for (Page pg: arr) {
-        	//TODO, this may be problematic
-        	pg = this.getPage(tid, pg.getId(), Permissions.READ_WRITE);
-        	pg.markDirty(true, tid);
+        for(Page p: arr) {
+        	p.markDirty(true, tid);
+        	cache.remove(p);
+        	cache.add(p);
         }
+        
     }
 
     /**
@@ -291,8 +458,12 @@ public class BufferPool {
      * cache.
      */
     public synchronized void discardPage(PageId pid) {
-        // some code goes here
-        // only necessary for lab6                                                                            // cosc460
+//        for(Page p: cache) {
+//        	if (p.getId().equals(pid)) {
+//        		cache.remove(p);
+//        		return;
+//        	}
+//        }
     }
 
     /**
@@ -302,18 +473,24 @@ public class BufferPool {
      */
     private synchronized void flushPage(PageId pid) throws IOException {
 		DbFile file = Database.getCatalog().getDatabaseFile(pid.getTableId());
-		file.writePage(Database.getBufferPool().find(pid)); //TODO, may affect LRU policy
+		file.writePage(Database.getBufferPool().find(pid));
     }
 
     /**
      * Write all pages of the specified transaction to disk.
      */
     public synchronized void flushPages(TransactionId tid) throws IOException {
-    	for(Page pg: cache)   { // cosc460
-    		if(pg.isDirty()!=null) { //TODO Check efficiency
-    			flushPage(pg.getId());
-    			manager.releaseLock(pg.getId(), tid);
+    	HashSet<Page> toRemove = new HashSet<Page>();
+    	for(Page pg: cache)   {	
+    		if(pg.isDirty() != null && pg.isDirty().equals(tid)) {
+    			toRemove.add(pg);
     		}
+    	}
+    	int i=0;
+    	for(Page pg: toRemove) {
+    		System.out.println("Releasing page: " + ++i);
+        	flushPage(pg.getId());
+    		releasePage(tid,pg.getId());
     	}
     }
 
@@ -322,14 +499,14 @@ public class BufferPool {
      * Flushes the page to disk to ensure dirty pages are updated on disk.
      */
     private synchronized void evictPage() throws DbException {
-        Iterator<Page> descend = cache.descendingIterator();
-        
+        Iterator<Page> descend = cache.descendingIterator(); //LRU implementation
+                
         while(descend.hasNext()) {
         	Page pg = descend.next();
         	if(pg.isDirty()==null) {
         		cache.remove(pg);
         		return;
-        	}
+        	} 
         }
         throw new DbException("BufferPool Exception: All BufferPool pages are dirty.");
     }
