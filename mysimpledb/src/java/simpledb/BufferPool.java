@@ -85,17 +85,19 @@ class LockManager {
 	private HashMap<PageId,LockEntry> locks = new HashMap<PageId,LockEntry>();
 	
 	
-    public synchronized void acquireLock(PageId pid,TransactionId tid,Permissions perm) {
+    public synchronized void acquireLock(PageId pid,TransactionId tid,Permissions perm) 
+    		throws TransactionAbortedException {
+    	//System.out.println(this);
     	LockEntry lockentry = locks.get(pid);
     	//No lock has been taken out on this page.
     	if(lockentry==null) {
-    		//System.out.println("New entry");
+    		System.out.println("New entry");
     		locks.put(pid,new LockEntry(tid,perm));    		
     		return;
     	}
     	
     	Lock lock = new Lock(tid, perm);
-    	
+    	    	
     	//Lock is already held (probably should not happen)
     	if(lockentry.active.contains(lock)) {
     		return; //Probably unnecessary
@@ -103,8 +105,9 @@ class LockManager {
     	
     	//LockEntry is initialized, but not in use, add new lock to active set
     	if(lockentry.active.size() == 0) {
-    		//System.out.println("active is empty, add");
+    		System.out.println("active is empty, add");
     		lockentry.active.add(lock);
+    		return;
     	}
     	
     	//Read lock request, r/w lock already held 
@@ -115,11 +118,12 @@ class LockManager {
     	//Lock is read only, add read only lock request to active set
     	if(lockentry.isReadOnly && perm.equals(Permissions.READ_ONLY)) {
     		lockentry.active.add(lock);
+    		return;
     	}
     	
     	//Upgrade: Lock is read-only, acquisition request is r/w
     	if(perm.equals(Permissions.READ_WRITE) && lockentry.containsTid(tid)) {
-    		//System.out.println("upgrade");
+    		System.out.println("upgrade");
     		if(lockentry.active.size()==1) {
     			for(Lock l: lockentry.active) {
     				l.perm = Permissions.READ_WRITE;
@@ -135,26 +139,31 @@ class LockManager {
     		lockentry.waitingRequests.add(lock);
     	}
     	
-    	//System.out.println(toString());
+    	long start = System.nanoTime();
+    	long maximum = 1000 * 1000000;
     	
     	//Spin wait until in the active set
     	while(!lockentry.active.contains(lock)) {
     		//spin
+    		if (System.nanoTime()-start > maximum) {
+    			throw new TransactionAbortedException();
+    		}
     	}  	
     }
 
     public synchronized void releaseLock(PageId pid,TransactionId tid) {
     	LockEntry lockentry = locks.get(pid);
-    	Lock remove = null;
+    	HashSet<Lock> remove = new HashSet<Lock>();
+		System.out.println("removing " + tid);
     	
     	//Remove locks in active set, avoiding concurrent modification
     	for(Lock l: lockentry.active) {
     		if (l.tid.equals(tid)) {
-    			remove = l;
+    			remove.add(l);
     		}
     	}
-    	if(remove!=null) {
-    		lockentry.active.remove(remove);
+    	for(Lock l: remove) {
+    		lockentry.active.remove(l);
     	}
     	
     	//System.out.println("item removed, queue is now: " + lockentry.active);
@@ -289,6 +298,7 @@ public class BufferPool {
     	 * the most recently used page is appended to the rear.
     	 * This is clearly subject to change.
     	 */
+    	System.out.println("get page " + pid);
     	manager.acquireLock(pid,tid,perm);
 		//System.out.println("Locked page");
     	Page pg = find(pid);

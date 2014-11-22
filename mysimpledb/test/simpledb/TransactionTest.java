@@ -44,6 +44,7 @@ public class TransactionTest extends TestUtil.CreateHeapFile {
 
         // forget about locks associated to tid, so they don't conflict with
         // test cases
+        System.out.println("got to here -----");
         bp.getPage(tid, p0, Permissions.READ_WRITE).markDirty(true, tid);
         bp.getPage(tid, p1, Permissions.READ_WRITE).markDirty(true, tid);
         bp.getPage(tid, p2, Permissions.READ_WRITE).markDirty(true, tid);
@@ -58,6 +59,7 @@ public class TransactionTest extends TestUtil.CreateHeapFile {
      */
     @Test
     public void attemptTransactionTwice() throws Exception {
+    	System.out.println("first");
         bp.getPage(tid1, p0, Permissions.READ_ONLY);
         bp.getPage(tid1, p1, Permissions.READ_WRITE);
         bp.transactionComplete(tid1, true);

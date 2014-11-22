@@ -125,7 +125,7 @@ public class HeapFile implements DbFile {
     	boolean isAdded = false;
     	
     	for (int i=0;i<this.numPages();i++) {
-    		pg = (HeapPage)Database.getBufferPool().getPage(tid, new HeapPageId(this.getId(),i), Permissions.READ_ONLY);
+    		pg = (HeapPage)Database.getBufferPool().getPage(tid, new HeapPageId(this.getId(),i), Permissions.READ_WRITE);
     		if(pg.getNumEmptySlots() > 0) {
     			isAdded = true;
     			break;
