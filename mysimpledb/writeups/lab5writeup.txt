@@ -5,38 +5,41 @@ After you complete lab 5, please answer the following questions.
 
 1. What is your name?  If you work with a partner, be sure to write both of your names.
 
-	(Replace this text with your answer)
+Michael Lese
 
 2. What did you think of this assignment?
 
-	(Replace this text with your answer)
+I thought it was straightforward and fair, and a good way of teaching conceptual ideas about locking and concurrency. In terms of the implementation, I thought it was challenging, and a substantial test of my debugging technique.
 
 3. What was the hardest part of this assignment?
 
-	(Replace this text with your answer)
+The hardest part for me were the many moving parts found throughout the assignment, as well as the many sections we had to design and implement themselves. While I'm confident that I know the concepts, as this lab proved, implementation is an entirely different aspect. The extensive debugging process was what I found the hardest. 
 
 4. Describe any missing or incomplete elements of your code.
 
-	(Replace this text with your answer)
+There is a persistent problem with the manner in which pages are written, which makes recovery from an abort impossible. While the unit tests all pass aside from this issue, it renders the lab incomplete, and will need to be addressed.
 
 5. Roughly how long did you spend working on this lab?
 
-	(Replace this text with your answer)
+10-15 hours. 
 
 6. Describe your lock manager implementation.  Here are some specific questions to answer:
 
 a) Where is your lock manager located?  (I.e., is it a separate class, part of BufferPool, etc.)
 
-	(Replace this text with your answer)
+My lock manager is a separate class, defined in Bufferpool.java
 
 b) What specific information do you store and how do you store it?  
 
-	(Replace this text with your answer)
+The manager keeps a HashMap<PageId, LockEntry> of lock entries, which contain a hashset of transaction, permission of locks currently held, as well as a waiting queue of tranaction, permission pairs (the Lock class).
 
 c) Briefly describe what happens when a new transaction requests a page.  I.e., walk thru how the lock manager decides whether or not to grant the request.  Your description should reference the data structures that describe in part (b).
 
-	(Replace this text with your answer)
+When a new transaction requests a page, it first checks to see if the LockEntry has been initialized. If not, it makes a new entry, and inserts itself into the active locks hashset.
+If the active hashset is empty, it adds itself to the set, granting the lock.
+If the lockentry is read-only (indicated by a variable), and the request is as well, the lock object is added to the active set. If it is read-write, and a read only lock of the same transaction is in the active set, two things can happen, an upgrade (if nothing else holds the read only lock) or a push to the top of the queue (if there is more than one holder).
+Otherwise, the lock is added to the waiting queue, if it is not in the queue already, and spinwaits until the transaction, permission pair is in the active set.
 
 d) Briefly explain how you manage locks when inserting a tuple into a HeapFile.  In particular, how do you acquire/release locks when looking for a page to insert.
 
-	(Replace this text with your answer)
+The pages are read with a read-write lock, which is not necessarily the best way to implement this, rather than the optimal, read, then read-write implementation.

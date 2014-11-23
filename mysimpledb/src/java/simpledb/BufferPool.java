@@ -298,7 +298,7 @@ public class BufferPool {
     	 * the most recently used page is appended to the rear.
     	 * This is clearly subject to change.
     	 */
-    	System.out.println("get page " + pid);
+    	//System.out.println("get page " + pid);
     	manager.acquireLock(pid,tid,perm);
 		//System.out.println("Locked page");
     	Page pg = find(pid);
