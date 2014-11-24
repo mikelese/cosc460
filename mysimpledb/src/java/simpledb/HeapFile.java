@@ -135,10 +135,11 @@ public class HeapFile implements DbFile {
     	//New Page needed
     	if(!isAdded) {
     		pg = new HeapPage(new HeapPageId(this.getId(),numPages()),HeapPage.createEmptyPageData());
+    		this.writePage(pg);
     	}
     	
 		pg.insertTuple(t);
-		this.writePage(pg);
+		//this.writePage(pg);
 		//pg.markDirty(true, tid);
 		//System.out.println("Marked " + pg + " dirty");
 

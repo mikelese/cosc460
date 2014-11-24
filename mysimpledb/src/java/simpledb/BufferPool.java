@@ -98,9 +98,16 @@ class LockManager {
     	
     	Lock lock = new Lock(tid, perm);
     	    	
-    	//Lock is already held (probably should not happen)
-    	if(lockentry.active.contains(lock)) {
-    		return; //Probably unnecessary
+    	//Lock is already held
+    	boolean alreadyHas = true;
+    	for(Lock l: lockentry.active) {
+    		if(!l.perm.equals(perm) || !l.tid.equals(tid)) {
+    			alreadyHas = false;
+    			break;
+    		}
+    	}
+    	if(alreadyHas) {
+    		return;
     	}
     	
     	//LockEntry is initialized, but not in use, add new lock to active set
@@ -123,9 +130,16 @@ class LockManager {
     	
     	//Upgrade: Lock is read-only, acquisition request is r/w
     	if(perm.equals(Permissions.READ_WRITE) && lockentry.containsTid(tid)) {
-    		System.out.println("upgrade");
-    		if(lockentry.active.size()==1) {
+    		boolean addDirect = true;
+    		for(Lock l: lockentry.active) {
+    			if(!l.tid.equals(tid)) {
+    				addDirect = false;
+    				break;
+    			}
+    		}
+    		if(addDirect) {
     			for(Lock l: lockentry.active) {
+    	    		System.out.println("upgrade");
     				l.perm = Permissions.READ_WRITE;
     				return;
     			}
@@ -133,14 +147,17 @@ class LockManager {
     			lockentry.waitingRequests.push(lock);
     		}		
     	}
-    	
+    	    	
     	//Normal case: if lock is not in waiting queue, add
     	if(!lockentry.waitingRequests.contains(lock)) {
     		lockentry.waitingRequests.add(lock);
+    		System.out.println(tid + " is added to queue.");
+    		System.out.println("active: " + lockentry.active);
+    		System.out.println("queue: " + lockentry.waitingRequests);
     	}
     	
     	long start = System.nanoTime();
-    	long maximum = 1000 * 1000000;
+    	long maximum = 1500 * 1000000;
     	
     	//Spin wait until in the active set
     	while(!lockentry.active.contains(lock)) {
@@ -155,6 +172,7 @@ class LockManager {
     	LockEntry lockentry = locks.get(pid);
     	HashSet<Lock> remove = new HashSet<Lock>();
 		System.out.println("removing " + tid);
+		System.out.println("Queue: " + lockentry.waitingRequests);
     	
     	//Remove locks in active set, avoiding concurrent modification
     	for(Lock l: lockentry.active) {
@@ -166,15 +184,31 @@ class LockManager {
     		lockentry.active.remove(l);
     	}
     	
-    	//System.out.println("item removed, queue is now: " + lockentry.active);
-		
+		System.out.println("Active state: " + lockentry.active);
+    			
     	//If there are no other transactions using this lock, add new locks from queue.
     	if(lockentry.active.size()==0) {
     		//If there is an item on queue, add it
     		if(lockentry.waitingRequests.size() >0) {
+    			    			
 	    		Lock l = lockentry.waitingRequests.pop();
+    			
+	    		boolean isUpgrade = true;
+	    		if(l.perm.equals(Permissions.READ_ONLY)) {
+	    			for(Lock locks: lockentry.active) {
+	    				if(!locks.tid.equals(l.tid)) {
+	    					isUpgrade = false;
+	    					break;
+	    				}
+	    			}
+	    			if(isUpgrade) {
+	    				for(Lock locks: lockentry.active) {
+	    					locks.perm = Permissions.READ_WRITE;
+	    				}
+	    			}
+	    		}
+    					
 	    		lockentry.set(l);
-	    		//System.out.println("Moving lock with " + l.tid +  "--" + l.perm);
 	    		
 	    		// If this item is read only, and there are items on queue
 	    		if(lockentry.isReadOnly && lockentry.waitingRequests.size() >0) {
@@ -206,9 +240,6 @@ class LockManager {
 		while(it.hasNext()) {
 			PageId pid = it.next();
 			LockEntry le = locks.get(pid);
-			if(le.containsTid(tid)) {
-				releaseLock(pid,tid);
-			}
 			//System.out.println(le.active);
 			HashSet<Lock> removeLocks = new HashSet<Lock>();
 			for(Lock l : le.waitingRequests) {
@@ -218,6 +249,11 @@ class LockManager {
 			}
 			le.waitingRequests.removeAll(removeLocks);
 			//System.out.println(le.waitingRequests);
+			
+			if(le.containsTid(tid)) {
+				releaseLock(pid,tid);
+			}
+
 		}
 	}
 	
