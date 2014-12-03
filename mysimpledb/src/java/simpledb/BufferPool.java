@@ -296,6 +296,10 @@ public class BufferPool {
     	 * This is clearly subject to change.
     	 */
     	//System.out.println("get page " + pid);
+    	System.out.println("Bufferpool state:" + cache);
+    	if(cache.size()>0) {
+    		System.out.println(cache.peek().isDirty());
+    	}
     	manager.acquireLock(pid,tid,perm);
 		//System.out.println("Locked page");
     	Page pg = find(pid);
@@ -303,10 +307,10 @@ public class BufferPool {
         	int tableid = pid.getTableId();        	
         	pg = Database.getCatalog().getDatabaseFile(tableid).readPage(pid);
         	synchronized (this) {
-	        	cache.push(pg);
-	        	if(cache.size()> maxSize){
+	        	if(cache.size()>= maxSize){
 	        		evictPage();
 	        	}
+	        	cache.push(pg);
         	}
         }
     	return pg;
@@ -420,12 +424,12 @@ public class BufferPool {
     	
         DbFile file = Database.getCatalog().getDatabaseFile(tableId);
         ArrayList<Page> arr = file.insertTuple(tid, t);
-        
+        System.out.println("ARRAY LIST " + arr);
         for(Page p: arr) {
-        	p.markDirty(true, tid);
         	synchronized (this) {
-        		cache.remove(p);
-        		cache.add(p);
+	        	cache.remove(p);
+	        	p.markDirty(true, tid);
+	        	cache.push(p);
         	}
         }
         
@@ -448,7 +452,9 @@ public class BufferPool {
     	PageId pid = t.getRecordId().getPageId();
     	HeapPage pg = (HeapPage)Database.getBufferPool().getPage(tid, pid, Permissions.READ_WRITE);
     	pg.deleteTuple(t);
+    	cache.remove(pg);
     	pg.markDirty(true, tid);
+    	cache.push(pg);
     }
 
     /**
@@ -519,7 +525,10 @@ public class BufferPool {
         while(descend.hasNext()) {
         	Page pg = descend.next();
         	if(pg.isDirty()==null) {
+        		//System.out.println(pg.isDirty());
+        	//	System.out.println("found unsullied page " + pg);
         		cache.remove(pg);
+        	//	System.out.println(cache);
         		return;
         	} 
         }
