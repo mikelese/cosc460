@@ -132,6 +132,7 @@ public class TransactionTest extends SimpleDbTestBase {
                         q3.close();
 
                         tr.commit();
+                        Database.getBufferPool().flushAllPages();
                         break;
                     } catch (TransactionAbortedException te) {
                         //System.out.println("thread " + tr.getId() + " killed");
