@@ -161,7 +161,8 @@ class LockManager {
     		lockentry.active.remove(tid);
     	}
     	
-		System.out.println("Active state: " + lockentry.active);
+		//
+    	//System.out.println("Active state: " + lockentry.active);
     			
     	//If there are no other transactions using this lock, add new locks from queue.
     	if(lockentry.active.size()==0) {
@@ -296,7 +297,7 @@ public class BufferPool {
     	 * This is clearly subject to change.
     	 */
     	//System.out.println("get page " + pid);
-    	System.out.println("Bufferpool state:" + cache);
+    	//System.out.println("Bufferpool state:" + cache);
     	if(cache.size()>0) {
     		System.out.println(cache.peek().isDirty());
     	}
@@ -376,25 +377,18 @@ public class BufferPool {
     		HashSet<Page> toRemove = new HashSet<Page>();
     		synchronized (this) {
 	    		for(Page p: cache) {
-	    			//System.out.println(p.isDirty());
 	    			if(p.isDirty()==null) {
-	    				//System.out.println("NOT DIRTY" + cache.size() +" " + this.maxSize);
 	    				continue;
 	    			}
-	    			
+	    	        
 	    			if(p.isDirty().equals(tid)) {
-	    				//cache.remove(p);
-	    				//System.out.println(cache);
-	    				//System.out.println("Page " + p + "(pid: " +p.getId()+ ") is dirty");
-	    				//HeapFile file = (HeapFile)Database.getCatalog().getDatabaseFile(p.getId().getTableId());
-	    				//cache.add(file.readPage(p.getId()));
 	    				toRemove.add(p);
-	    				//releasePage(tid,p.getId());
 	    			}
 	    		}
 	    		for(Page p : toRemove) {
 	    			cache.remove(p);
 					System.out.println("Page " + p + "(pid: " +p.getId()+ ") is dirty");
+					
 					HeapFile file = (HeapFile)Database.getCatalog().getDatabaseFile(p.getId().getTableId());
 					cache.add(file.readPage(p.getId()));
 					releasePage(tid,p.getId());
@@ -424,7 +418,7 @@ public class BufferPool {
     	
         DbFile file = Database.getCatalog().getDatabaseFile(tableId);
         ArrayList<Page> arr = file.insertTuple(tid, t);
-        System.out.println("ARRAY LIST " + arr);
+       // System.out.println("ARRAY LIST " + arr);
         for(Page p: arr) {
         	synchronized (this) {
 	        	cache.remove(p);
@@ -465,9 +459,9 @@ public class BufferPool {
     public synchronized void flushAllPages() throws IOException {
     	synchronized (this) {
 	    	for(int i=0;i<cache.size();i++) { //TODO, look into possible issues with realignment
-	    		if(cache.get(i).isDirty()!=null) {
+	    		//if(cache.get(i).isDirty()!=null) {
 	    			flushPage(cache.get(i).getId());
-	    		}
+	    		//}
 	    	}
     	}
     }
@@ -479,12 +473,14 @@ public class BufferPool {
      * cache.
      */
     public synchronized void discardPage(PageId pid) {
-//        for(Page p: cache) {
-//        	if (p.getId().equals(pid)) {
-//        		cache.remove(p);
-//        		return;
-//        	}
-//        }
+    	Page remove;
+    	for(Page p: cache) {
+    		if(p.getId().equals(pid)) {
+    			remove = p;
+    	    	cache.remove(remove);
+    			break;
+    		}
+    	}
     }
 
     /**
@@ -493,8 +489,15 @@ public class BufferPool {
      * @param pid an ID indicating the page to flush
      */
     private synchronized void flushPage(PageId pid) throws IOException {
-		DbFile file = Database.getCatalog().getDatabaseFile(pid.getTableId());
-		file.writePage(Database.getBufferPool().find(pid));
+    	Page p = Database.getBufferPool().find(pid);
+        // append an update record to the log, with 
+        // a before-image and after-image.
+        TransactionId dirtier = p.isDirty();
+        if (dirtier != null){
+          Database.getLogFile().logWrite(dirtier, p.getBeforeImage(), p);
+          Database.getLogFile().force();
+        }		DbFile file = Database.getCatalog().getDatabaseFile(pid.getTableId());
+		file.writePage(p);
     }
 
     /**
@@ -504,6 +507,10 @@ public class BufferPool {
     	HashSet<Page> toRemove = new HashSet<Page>();
     	for(Page pg: cache)   {	
     		if(pg.isDirty() != null && pg.isDirty().equals(tid)) {
+    	        // use current page contents as the before-image
+    	        // for the next transaction that modifies this page.
+    	        pg.setBeforeImage();
+
     			toRemove.add(pg);
     		}
     	}

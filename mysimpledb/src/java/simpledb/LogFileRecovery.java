@@ -92,10 +92,66 @@ class LogFileRecovery {
      * @param tidToRollback The transaction to rollback
      * @throws java.io.IOException if tidToRollback has already committed
      */
-    public void rollback(TransactionId tidToRollback) throws IOException {
-        readOnlyLog.seek(readOnlyLog.length()); // undoing so move to end of logfile
+    public void rollback(TransactionId tidToRollback) throws IOException {    	
+    	readOnlyLog.seek(readOnlyLog.length()); // undoing so move to end of logfile
+        long pointer = readOnlyLog.length()-LogFile.LONG_SIZE;
+        for(;;) {
+            readOnlyLog.seek(pointer);
+        	//find start of record, go to start
+        	long start = readOnlyLog.readLong();
+        	long recordPtr = start;
+        	System.out.println("Start: "+ start);
+        	readOnlyLog.seek(recordPtr);
+        	
+        	//read type
+        	int type = readOnlyLog.readInt();
+        	
+        	recordPtr+=LogFile.INT_SIZE;
+        	readOnlyLog.seek(recordPtr);
+        	
+        	//get and compare tid
+        	long tid = readOnlyLog.readLong();
+        	if(tid == tidToRollback.getId()) {
+        		switch(type) {
+            	
+            	case LogType.ABORT_RECORD:
+            		System.out.println("abort");
+            		break;
+            		
+            	case LogType.BEGIN_RECORD:
+            		System.out.println("begin");
+            		return;
+            		
+            	case LogType.CHECKPOINT_RECORD:
+            		System.out.println("chkpt");
+            		break;
 
-        // some code goes here
+            	
+            	case LogType.CLR_RECORD:
+            		System.out.println("clr");
+            		break;
+
+            		
+            	case LogType.COMMIT_RECORD:
+            		throw new IOException("LogFileRecovery Error: Abort of committed transaction");
+            		
+            	case LogType.UPDATE_RECORD:
+            		System.out.println("update");
+            		Page before = LogFile.readPageData(readOnlyLog);
+            		Page after = LogFile.readPageData(readOnlyLog);
+            		DbFile f = Database.getCatalog().getDatabaseFile(before.getId().getTableId());
+            		f.writePage(before);
+            		System.out.println("wrote page " + before);
+            		Database.getBufferPool().discardPage(before.getId());
+            		Database.getLogFile().logCLR(tid, after);
+            		
+            		break;
+            	}
+        	}
+        	//set pointer to beginning of terminal file length long 
+        	pointer = start - LogFile.LONG_SIZE;
+        	System.out.println("ptr: " + pointer);
+        }
     }
 
     /**

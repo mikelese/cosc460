@@ -72,11 +72,11 @@ public class LogRollbackTest extends LogTestBase {
         look(hf1, t2, 1, true);                  // should be there
         look(hf1, t2, 2, true);
         t2.commit();
-
         try {
             Database.getLogFile().logAbort(t2.getId());  // okay, this is a bit weird to do b/c txn committed...  nevertheless
             Assert.fail("Error!  Should not be able to able to abort a committed transaction!");
         } catch (IOException ignored) {}
+        //System.out.println("got here");
 
         Transaction t3 = new Transaction();
         t3.start();
