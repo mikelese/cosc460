@@ -2,6 +2,8 @@ package simpledb;
 
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -92,7 +94,17 @@ class LogFileRecovery {
      * @param tidToRollback The transaction to rollback
      * @throws java.io.IOException if tidToRollback has already committed
      */
-    public void rollback(TransactionId tidToRollback) throws IOException {    	
+    public void rollback(TransactionId tidToRollback) throws IOException {
+    	singularRollback(tidToRollback.getId());
+    }
+    
+    private void singularRollback(long tid) throws IOException {
+    	Collection<Long> c = new HashSet<Long>();
+    	c.add(tid);
+    	setRollback(c);
+    }
+    
+    private void setRollback(Collection<Long> tids) throws IOException {
     	readOnlyLog.seek(readOnlyLog.length()); // undoing so move to end of logfile
         long pointer = readOnlyLog.length()-LogFile.LONG_SIZE;
         for(;;) {
@@ -111,7 +123,7 @@ class LogFileRecovery {
         	
         	//get and compare tid
         	long tid = readOnlyLog.readLong();
-        	if(tid == tidToRollback.getId()) {
+        	if(tids.contains(tid)) {
         		switch(type) {
             	
             	case LogType.ABORT_RECORD:
@@ -163,8 +175,64 @@ class LogFileRecovery {
      * the BufferPool are locked.
      */
     public void recover() throws IOException {
+    	long checkpointLoc = readOnlyLog.readLong();
+    	if(checkpointLoc == -1) {
+    		readOnlyLog.seek(LogFile.LONG_SIZE);
+    	} else {
+    		readOnlyLog.seek(checkpointLoc);
+    	}
+    	int activeTransactions = readOnlyLog.readInt();
+    	Collection<Long> tids = new HashSet<Long>();
+    	
+    	readOnlyLog.seek(LogFile.INT_SIZE);
+    	for(int i=0;i<activeTransactions;i++) {
+    		tids.add(readOnlyLog.readLong());
+    		readOnlyLog.seek(LogFile.LONG_SIZE);
+    	}
+    	
+    	while(readOnlyLog.getFilePointer() < readOnlyLog.length()) {
+    		int type = readOnlyLog.readInt();
+    		readOnlyLog.seek(LogFile.INT_SIZE);
+    		
+    		long tid = readOnlyLog.readLong();
+    		
+    		switch(type) {
+    		
+        	case LogType.ABORT_RECORD:
+        		System.out.println("abort");
+        		tids.remove(tid);
+        		break;
+        		
+        	case LogType.BEGIN_RECORD:
+        		System.out.println("begin");
+        		tids.add(tid);
+        		return;
+        		
+        	case LogType.CHECKPOINT_RECORD:
+        		throw new RuntimeException("This should not happen");
 
-        // some code goes here
+        	case LogType.CLR_RECORD:
+        		System.out.println("clr");
+        		break;
 
+        		
+        	case LogType.COMMIT_RECORD:
+        		System.out.println("commit");
+        		tids.remove(tid);
+        		break;
+        		
+        	case LogType.UPDATE_RECORD:
+        		System.out.println("update");
+        		Page before = LogFile.readPageData(readOnlyLog);
+        		Page after = LogFile.readPageData(readOnlyLog);
+        		DbFile f = Database.getCatalog().getDatabaseFile(before.getId().getTableId());
+        		f.writePage(after);
+        		//System.out.println("wrote page " + after);
+        		Database.getBufferPool().discardPage(before.getId());
+        		break;
+
+    		}
+    	}
+    	setRollback(tids);  	
     }
 }
