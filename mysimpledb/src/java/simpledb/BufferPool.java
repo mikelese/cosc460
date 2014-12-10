@@ -80,77 +80,81 @@ class LockManager {
 	private HashMap<PageId,LockEntry> locks = new HashMap<PageId,LockEntry>();
 	
 	
-    public void acquireLock(PageId pid,TransactionId tid,Permissions perm) 
-    		throws TransactionAbortedException {
-    	//System.out.println(this);
-    	synchronized (this) {
-    	LockEntry lockentry = locks.get(pid);
-    	//No lock has been taken out on this page.
-    	if(lockentry==null) {
-    		System.out.println(tid+" (New entry)");
-    		locks.put(pid,new LockEntry(tid,perm));    		
-    		return;
-    	}
-    	
-    	Lock lock = new Lock(tid, perm);
-    	    	
-    	//Lock is already held
-    	if(lockentry.containsTid(tid)) {
-    		return;
-    	}
-    	
-    	
-    	//LockEntry is initialized, but not in use, add new lock to active set
-    	if(lockentry.active.size() == 0) {
-    		System.out.println("active is empty, add");
-    		lockentry.active.add(tid);
-    		lockentry.isReadOnly = perm.equals(Permissions.READ_ONLY);
-    		return;
-    	}
-    	
-    	//Read lock request, r/w lock already held 
-    	if(lockentry.containsTid(tid) && perm.equals(Permissions.READ_ONLY) && !lockentry.isReadOnly) {
-    		return;
-    	}
-    	
-    	//Lock is read only, add read only lock request to active set
-//    	if(lockentry.isReadOnly && perm.equals(Permissions.READ_ONLY)) {
-//    		lockentry.active.add(tid);
-//    		return;
-//    	}
-    	
-    	//Upgrade: Lock is read-only, acquisition request is r/w
-    	if(perm.equals(Permissions.READ_WRITE) && lockentry.containsTid(tid)) {
-    		if(lockentry.active.size() > 1) {
-    			lockentry.waitingRequests.push(lock);
-    		} else {
-    			lockentry.isReadOnly = false;
-    			return;
-    		}
-    	}
-    	    	
-    	//Normal case: if lock is not in waiting queue, add
-    	if(!lockentry.waitingRequests.contains(lock)) {
-    		lockentry.waitingRequests.add(lock);
-    		System.out.println(tid + " is added to queue.");
-    		System.out.println("active: " + lockentry.active);
-    		System.out.println("queue: " + lockentry.waitingRequests);
-    	}
-    	
-    	long start = System.nanoTime();
-    	long maximum = 1500 * 1000000;
-    	
-    	//Spin wait until in the active set
-    	while(!lockentry.active.contains(lock)) {
-    		//spin
-    		if (System.nanoTime()-start > maximum) {
-    			throw new TransactionAbortedException();
-    		}
-    	}
-    	}
-    }
+	public void acquireLock(PageId pid,TransactionId tid,Permissions perm) 
+			throws TransactionAbortedException {
+		synchronized (this) {
+			LockEntry lockentry = locks.get(pid);
+			//No lock has been taken out on this page.
+			if(lockentry==null) {
+				System.out.println(tid+" (New entry)");
+				locks.put(pid,new LockEntry(tid,perm));    		
+				return;
+			}
 
-    public synchronized void releaseLock(PageId pid,TransactionId tid) {
+			Lock lock = new Lock(tid, perm);
+
+			//Lock is already held
+			if(lockentry.containsTid(tid)) {
+				return;
+			}
+
+			//LockEntry is initialized, but not in use, add new lock to active set
+			if(lockentry.active.size() == 0) {
+				System.out.println("active is empty, add");
+				lockentry.active.add(tid);
+				lockentry.isReadOnly = perm.equals(Permissions.READ_ONLY);
+				return;
+			}
+
+			//Read lock request, r/w lock already held 
+			if(lockentry.containsTid(tid) && perm.equals(Permissions.READ_ONLY) && !lockentry.isReadOnly) {
+				return;
+			}
+
+			//Lock is read only, add read only lock request to active set
+			//    	if(lockentry.isReadOnly && perm.equals(Permissions.READ_ONLY)) {
+			//    		lockentry.active.add(tid);
+			//    		return;
+			//    	}
+			
+			if(lockentry.isReadOnly && perm.equals(Permissions.READ_ONLY) && lockentry.waitingRequests.size()<1) {
+				System.out.println("reads on one page");
+				lockentry.active.add(tid);
+				return;
+			}
+
+			//Upgrade: Lock is read-only, acquisition request is r/w
+			if(perm.equals(Permissions.READ_WRITE) && lockentry.containsTid(tid)) {
+				if(lockentry.active.size() > 1) {
+					lockentry.waitingRequests.push(lock);
+				} else {
+					lockentry.isReadOnly = false;
+					return;
+				}
+			}
+
+			//Normal case: if lock is not in waiting queue, add
+			if(!lockentry.waitingRequests.contains(lock)) {
+				lockentry.waitingRequests.add(lock);
+				System.out.println(tid + " is added to queue.");
+				System.out.println("active: " + lockentry.active);
+				System.out.println("queue: " + lockentry.waitingRequests);
+			}
+
+			long start = System.nanoTime();
+			long maximum = 1500 * 1000000;
+
+			//Spin wait until in the active set
+			while(!lockentry.active.contains(lock)) {
+				//spin
+				if (System.nanoTime()-start > maximum) {
+					throw new TransactionAbortedException();
+				}
+			}
+		}
+	}
+
+	public synchronized void releaseLock(PageId pid,TransactionId tid) {
     	LockEntry lockentry = locks.get(pid);
     	HashSet<Lock> remove = new HashSet<Lock>();
 		System.out.println("removing " + tid);
@@ -298,9 +302,6 @@ public class BufferPool {
     	 */
     	//System.out.println("get page " + pid);
     	//System.out.println("Bufferpool state:" + cache);
-    	if(cache.size()>0) {
-    		System.out.println(cache.peek().isDirty());
-    	}
     	manager.acquireLock(pid,tid,perm);
 		//System.out.println("Locked page");
     	Page pg = find(pid);
@@ -532,10 +533,7 @@ public class BufferPool {
         while(descend.hasNext()) {
         	Page pg = descend.next();
         	if(pg.isDirty()==null) {
-        		//System.out.println(pg.isDirty());
-        	//	System.out.println("found unsullied page " + pg);
         		cache.remove(pg);
-        	//	System.out.println(cache);
         		return;
         	} 
         }
