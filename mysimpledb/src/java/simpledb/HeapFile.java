@@ -253,8 +253,9 @@ public class HeapFile implements DbFile {
 
 			@Override
 			public void close() {
-				if(pageNum !=-1)
-					Database.getBufferPool().discardPage(curPage.getId());
+				//TODO There is a chance this may cause problems, prolly not though
+//				if(pageNum !=-1)
+//					Database.getBufferPool().discardPage(curPage.getId());
 				pageNum = -1;
 			}
     	}
