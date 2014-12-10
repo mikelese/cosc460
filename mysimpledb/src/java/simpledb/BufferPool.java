@@ -87,7 +87,7 @@ class LockManager {
     	LockEntry lockentry = locks.get(pid);
     	//No lock has been taken out on this page.
     	if(lockentry==null) {
-    		System.out.println(tid+" (New entry)");
+    		//System.out.println(tid+" (New entry)");
     		locks.put(pid,new LockEntry(tid,perm));    		
     		return;
     	}
@@ -102,7 +102,7 @@ class LockManager {
     	
     	//LockEntry is initialized, but not in use, add new lock to active set
     	if(lockentry.active.size() == 0) {
-    		System.out.println("active is empty, add");
+    		//System.out.println("active is empty, add");
     		lockentry.active.add(tid);
     		lockentry.isReadOnly = perm.equals(Permissions.READ_ONLY);
     		return;
@@ -132,9 +132,9 @@ class LockManager {
     	//Normal case: if lock is not in waiting queue, add
     	if(!lockentry.waitingRequests.contains(lock)) {
     		lockentry.waitingRequests.add(lock);
-    		System.out.println(tid + " is added to queue.");
-    		System.out.println("active: " + lockentry.active);
-    		System.out.println("queue: " + lockentry.waitingRequests);
+    		//System.out.println(tid + " is added to queue.");
+    		//System.out.println("active: " + lockentry.active);
+    		//System.out.println("queue: " + lockentry.waitingRequests);
     	}
     	
     	long start = System.nanoTime();
@@ -153,15 +153,15 @@ class LockManager {
     public synchronized void releaseLock(PageId pid,TransactionId tid) {
     	LockEntry lockentry = locks.get(pid);
     	HashSet<Lock> remove = new HashSet<Lock>();
-		System.out.println("removing " + tid);
-		System.out.println("Queue: " + lockentry.waitingRequests);
+		//System.out.println("removing " + tid);
+		//System.out.println("Queue: " + lockentry.waitingRequests);
     	
     	//Remove locks in active set, avoiding concurrent modification
     	if(lockentry.active.contains(tid)) {
     		lockentry.active.remove(tid);
     	}
     	
-		System.out.println("Active state: " + lockentry.active);
+		//System.out.println("Active state: " + lockentry.active);
     			
     	//If there are no other transactions using this lock, add new locks from queue.
     	if(lockentry.active.size()==0) {
@@ -296,10 +296,10 @@ public class BufferPool {
     	 * This is clearly subject to change.
     	 */
     	//System.out.println("get page " + pid);
-    	System.out.println("Bufferpool state:" + cache);
-    	if(cache.size()>0) {
-    		System.out.println(cache.peek().isDirty());
-    	}
+    	//System.out.println("Bufferpool state:" + cache);
+//    	if(cache.size()>0) {
+//    		System.out.println(cache.peek().isDirty());
+//    	}
     	manager.acquireLock(pid,tid,perm);
 		//System.out.println("Locked page");
     	Page pg = find(pid);
@@ -424,7 +424,7 @@ public class BufferPool {
     	
         DbFile file = Database.getCatalog().getDatabaseFile(tableId);
         ArrayList<Page> arr = file.insertTuple(tid, t);
-        System.out.println("ARRAY LIST " + arr);
+       // System.out.println("ARRAY LIST " + arr);
         for(Page p: arr) {
         	synchronized (this) {
 	        	cache.remove(p);
@@ -521,7 +521,7 @@ public class BufferPool {
     	}
     	int i=0;
     	for(Page pg: toRemove) {
-    		System.out.println("Releasing page: " + ++i);
+    		//System.out.println("Releasing page: " + ++i);
         	flushPage(pg.getId());
     		releasePage(tid,pg.getId());
     	}

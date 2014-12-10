@@ -3,7 +3,6 @@ package simpledb;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -94,17 +93,7 @@ class LogFileRecovery {
      * @param tidToRollback The transaction to rollback
      * @throws java.io.IOException if tidToRollback has already committed
      */
-    public void rollback(TransactionId tidToRollback) throws IOException {
-    	singularRollback(tidToRollback.getId());
-    }
-    
-    private void singularRollback(long tid) throws IOException {
-    	Collection<Long> c = new HashSet<Long>();
-    	c.add(tid);
-    	setRollback(c);
-    }
-    
-    private void setRollback(Collection<Long> tids) throws IOException {
+    public void rollback(TransactionId tidToRollback) throws IOException {    	
     	readOnlyLog.seek(readOnlyLog.length()); // undoing so move to end of logfile
         long pointer = readOnlyLog.length()-LogFile.LONG_SIZE;
         for(;;) {
@@ -123,7 +112,7 @@ class LogFileRecovery {
         	
         	//get and compare tid
         	long tid = readOnlyLog.readLong();
-        	if(tids.contains(tid)) {
+        	if(tid == tidToRollback.getId()) {
         		switch(type) {
             	
             	case LogType.ABORT_RECORD:
@@ -158,11 +147,15 @@ class LogFileRecovery {
             		Database.getLogFile().logCLR(tid, after);
             		
             		break;
+            		
+            	default:
+            		System.out.println("Improper read");
+
             	}
         	}
         	//set pointer to beginning of terminal file length long 
         	pointer = start - LogFile.LONG_SIZE;
-        	System.out.println("ptr: " + pointer);
+        	//System.out.println("ptr: " + pointer);
         }
     }
 
@@ -176,43 +169,42 @@ class LogFileRecovery {
      */
     public void recover() throws IOException {
     	long checkpointLoc = readOnlyLog.readLong();
-    	if(checkpointLoc == -1) {
-    		readOnlyLog.seek(LogFile.LONG_SIZE);
-    	} else {
+    	ArrayList<Long> tids = new ArrayList<Long>();
+
+    	if(checkpointLoc != -1) {
     		readOnlyLog.seek(checkpointLoc);
-    	}
-    	int activeTransactions = readOnlyLog.readInt();
-    	Collection<Long> tids = new HashSet<Long>();
-    	
-    	readOnlyLog.seek(LogFile.INT_SIZE);
-    	for(int i=0;i<activeTransactions;i++) {
-    		tids.add(readOnlyLog.readLong());
-    		readOnlyLog.seek(LogFile.LONG_SIZE);
-    	}
+    		readOnlyLog.readInt();//Type
+    		readOnlyLog.readLong();//TID
+        	int activeTransactions = readOnlyLog.readInt();//Number of transactions
+        	for(int i=0;i<activeTransactions;i++) {
+        		tids.add(readOnlyLog.readLong());
+        	}
+        	readOnlyLog.readLong();
+    	}	
     	
     	while(readOnlyLog.getFilePointer() < readOnlyLog.length()) {
-    		int type = readOnlyLog.readInt();
-    		readOnlyLog.seek(LogFile.INT_SIZE);
-    		
+    		int type = readOnlyLog.readInt();    		
     		long tid = readOnlyLog.readLong();
     		
     		switch(type) {
     		
         	case LogType.ABORT_RECORD:
-        		System.out.println("abort");
+        		System.out.println("RECOVER abort");
         		tids.remove(tid);
         		break;
         		
         	case LogType.BEGIN_RECORD:
         		System.out.println("begin");
         		tids.add(tid);
-        		return;
+        		break;
         		
         	case LogType.CHECKPOINT_RECORD:
-        		throw new RuntimeException("This should not happen");
+        		System.out.println("checkpoint");
+        		return;
 
         	case LogType.CLR_RECORD:
         		System.out.println("clr");
+        		LogFile.readPageData(readOnlyLog); // Skip entry
         		break;
 
         		
@@ -230,9 +222,16 @@ class LogFileRecovery {
         		//System.out.println("wrote page " + after);
         		Database.getBufferPool().discardPage(before.getId());
         		break;
-
+        	
+        	default:
+        		System.out.println("Improper read");
     		}
-    	}
-    	setRollback(tids);  	
+    		readOnlyLog.readLong();//Offset
+    	}  	
+    	System.out.println("LOSERS: " + tids);
+    	
+    	//Reinventing the wheel, I know...
+    	
+    	
     }
 }
