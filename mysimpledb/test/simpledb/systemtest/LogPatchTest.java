@@ -21,7 +21,6 @@ public class LogPatchTest extends LogTestBase {
         setup();
 
         doInsert(hf1, 1, 2);  // inserts and commits
-
         // *** Test:
         // check that BufferPool.transactionComplete(commit=true)
         // calls Page.setBeforeImage().

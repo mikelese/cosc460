@@ -284,7 +284,7 @@ public class HeapPage implements Page {
      * that did the dirtying
      */
     public void markDirty(boolean dirty, TransactionId tid) {
-        this.dirty = dirty;
+    	this.dirty = dirty;
         if(dirty) {
         	this.soiler = tid;
         } else {
