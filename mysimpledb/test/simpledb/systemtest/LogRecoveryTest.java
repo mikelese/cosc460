@@ -64,6 +64,11 @@ public class LogRecoveryTest extends LogTestBase {
         t.commit();
     }
 
+    /**
+     * @throws IOException
+     * @throws DbException
+     * @throws TransactionAbortedException
+     */
     @Test
     public void TestCommitAbortCommitCrash()
             throws IOException, DbException, TransactionAbortedException {

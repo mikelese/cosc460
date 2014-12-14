@@ -135,6 +135,7 @@ public class HeapFile implements DbFile {
     	//New Page needed
     	if(!isAdded) {
     		pg = new HeapPage(new HeapPageId(this.getId(),numPages()),HeapPage.createEmptyPageData());
+    		pg.insertTuple(t);
     		this.writePage(pg);
     	}
     	
