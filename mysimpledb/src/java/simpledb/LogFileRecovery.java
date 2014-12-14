@@ -154,7 +154,7 @@ class LogFileRecovery {
             		f.writePage(before);
             		System.out.println("wrote page " + before.getId());
             		Database.getBufferPool().discardPage(before.getId());
-            		Database.getLogFile().logCLR(tid, before);
+            		Database.getLogFile().logCLR(tid, after);
             		
             		break;
             		
@@ -229,9 +229,6 @@ class LogFileRecovery {
         		break;
         		
         	case LogType.UPDATE_RECORD:
-        		if(tid==3) {
-        			System.out.println(tid + "redo this change pls");
-        		}
         		System.out.println("update-recover");
         		Page before = LogFile.readPageData(readOnlyLog);
         		after = LogFile.readPageData(readOnlyLog);
