@@ -128,9 +128,9 @@ class LogFileRecovery {
             		break;
             		
             	case LogType.BEGIN_RECORD:
-            		System.out.println("begin");
             		tids.remove(tid);
-            		System.out.println(tid);
+            		Database.getLogFile().logAbort(tid);
+            		
             		break;
             		
             	case LogType.CHECKPOINT_RECORD:
@@ -154,7 +154,7 @@ class LogFileRecovery {
             		f.writePage(before);
             		System.out.println("wrote page " + before.getId());
             		Database.getBufferPool().discardPage(before.getId());
-            		Database.getLogFile().logCLR(tid, after);
+            		Database.getLogFile().logCLR(tid, before);
             		
             		break;
             		
@@ -178,7 +178,6 @@ class LogFileRecovery {
      * the BufferPool are locked.
      */
     public void recover() throws IOException {
-    	print();
     	long checkpointLoc = readOnlyLog.readLong();
     	Set<Long> tids = new HashSet<Long>();
 
@@ -215,11 +214,11 @@ class LogFileRecovery {
 
         	case LogType.CLR_RECORD:
         		System.out.println("clr-recover");
-        		//Page before = LogFile.readPageData(readOnlyLog);
-        		Page after = LogFile.readPageData(readOnlyLog); // Skip entry
-        		DbFile f1 = Database.getCatalog().getDatabaseFile(after.getId().getTableId());
-        		f1.writePage(after);
-        		Database.getBufferPool().discardPage(after.getId());
+        		Page before = LogFile.readPageData(readOnlyLog);
+        		//Page after = LogFile.readPageData(readOnlyLog); // Skip entry
+        		DbFile f1 = Database.getCatalog().getDatabaseFile(before.getId().getTableId());
+        		f1.writePage(before);
+        		Database.getBufferPool().discardPage(before.getId());
         		break;
 
         		
@@ -230,8 +229,8 @@ class LogFileRecovery {
         		
         	case LogType.UPDATE_RECORD:
         		System.out.println("update-recover");
-        		Page before = LogFile.readPageData(readOnlyLog);
-        		after = LogFile.readPageData(readOnlyLog);
+        		before = LogFile.readPageData(readOnlyLog);
+        		Page after = LogFile.readPageData(readOnlyLog);
         		DbFile f = Database.getCatalog().getDatabaseFile(after.getId().getTableId());
         		f.writePage(after);
         		Database.getBufferPool().discardPage(after.getId());
@@ -244,10 +243,71 @@ class LogFileRecovery {
     	}  	
     	System.out.println("LOSERS: " + tids);
     	
-    	for(Long l : tids) {
-    		Database.getLogFile().logAbort(l);
-    	}
-    	
-    	rollbackSets(tids);
+    	readOnlyLog.seek(readOnlyLog.length()); // undoing so move to end of logfile
+        long pointer = readOnlyLog.length()-LogFile.LONG_SIZE;
+        while(!tids.isEmpty()) {
+            readOnlyLog.seek(pointer);
+        	//find start of record, go to start
+        	long start = readOnlyLog.readLong();
+        	long recordPtr = start;
+        	//System.out.println("Start: "+ start);
+        	readOnlyLog.seek(recordPtr);
+        	
+        	//read type
+        	int type = readOnlyLog.readInt();
+        	
+        	recordPtr+=LogFile.INT_SIZE;
+        	readOnlyLog.seek(recordPtr);
+        	
+        	//get and compare tid
+        	long tid = readOnlyLog.readLong();
+        	if(tids.contains(tid)) {
+        		switch(type) {
+            	
+            	case LogType.ABORT_RECORD:
+            		System.out.println("abort");
+            		break;
+            		
+            	case LogType.BEGIN_RECORD:
+            		System.out.println("begin");
+            		tids.remove(tid);
+            		Database.getLogFile().logAbort(tid);
+            		
+            		break;
+            		
+            	case LogType.CHECKPOINT_RECORD:
+            		System.out.println("chkpt");
+            		break;
+
+            	
+            	case LogType.CLR_RECORD:
+            		System.out.println("clr");
+            		break;
+
+            		
+            	case LogType.COMMIT_RECORD:
+            		throw new IOException("LogFileRecovery Error: Abort of committed transaction");
+            		
+            	case LogType.UPDATE_RECORD:
+            		System.out.println("update");
+            		Page before = LogFile.readPageData(readOnlyLog);
+            		Page after = LogFile.readPageData(readOnlyLog);
+            		DbFile f = Database.getCatalog().getDatabaseFile(before.getId().getTableId());
+            		f.writePage(before);
+            		System.out.println("wrote page " + before.getId());
+            		Database.getBufferPool().discardPage(before.getId());
+            		Database.getLogFile().logCLR(tid, after);
+            		
+            		break;
+            		
+            	default:
+            		System.out.println("Improper read");
+
+            	}
+        	}
+        	pointer = start - LogFile.LONG_SIZE;
+        }
+        print();
     }
 }
+
